@@ -1,5 +1,5 @@
 /**
- * server.js — GPS Art Node.js Orchestrator
+ * server.js — Run2Art Server
  *
  * Serves the static frontend and proxies /api/match requests
  * to the Python geospatial engine (engine.py).
@@ -51,7 +51,10 @@ function callEngine(payload) {
     let stderr = '';
 
     py.stdout.on('data', chunk => { stdout += chunk; });
-    py.stderr.on('data', chunk => { stderr += chunk; });
+    py.stderr.on('data', chunk => {
+      stderr += chunk;
+      process.stderr.write(chunk);  // stream live to console
+    });
 
     py.on('close', code => {
       if (code !== 0) {
@@ -89,8 +92,10 @@ const server = http.createServer(async (req, res) => {
     req.on('end', async () => {
       try {
         const payload = JSON.parse(body);
-        console.log(`[api/match] mode="${payload.mode || 'fit'}" shape="${payload.shape_name || payload.shapes?.[payload.shape_index]?.name || '?'}" center=${JSON.stringify(payload.center_point)}`);
+        const t0 = Date.now();
+        console.log(`[api/match] mode="${payload.mode || 'fit'}" shape="${payload.shapes?.[payload.shape_index]?.name || '?'}" center=${JSON.stringify(payload.center_point)}`);
         const result = await callEngine(payload);
+        console.log(`[api/match] done in ${((Date.now() - t0) / 1000).toFixed(1)}s  score=${result.score ?? '?'}`);
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(result));
       } catch (err) {
@@ -107,5 +112,5 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`\n  GPS Art server running at  http://localhost:${PORT}\n`);
+  console.log(`\n  Run2Art server running at  http://localhost:${PORT}\n`);
 });

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>GPS Art — Street-Fitted Shape Generator</title>
+  <title>Run2Art — Street-Fitted Shape Generator</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -134,7 +134,7 @@
 <div id="app">
   <!-- SIDEBAR -->
   <div id="sidebar">
-    <h1>&#x1F5FA;&#xFE0F; GPS Art</h1>
+    <h1>&#x1F3C3; Run2Art</h1>
 
     <!-- Location -->
     <div class="section">
@@ -155,9 +155,9 @@
     <!-- Actions -->
     <div class="section">
       <button id="btn-fit" disabled>&#x26A1; Quick Fit</button>
-      <div class="btn-hint">Fit selected shape to streets (fast, default params)</div>
+      <div class="btn-hint">Fast shape-aware routing with auto rotation, scale &amp; position</div>
       <button id="btn-optimize" disabled>&#x1F50D; Auto-Optimize Shape</button>
-      <div class="btn-hint">Two-step coarse→fine: finds best rotation, scale &amp; position</div>
+      <div class="btn-hint">Full two-step coarse→fine optimisation (~4 000 combos)</div>
       <button id="btn-best-shape">&#x1F3C6; Find Best Shape</button>
       <div class="btn-hint">Tries all 20 shapes × orientations to find the best match here</div>
     </div>
@@ -409,23 +409,17 @@ async function handleFit(mode) {
   showSpinner(true);
   fittedCoords = null; clearFitted();
 
-  // Build payload with all shapes for the engine
-  var shapesPayload = SHAPES.map(function(s) { return { name: s.name, pts: s.pts }; });
+  // Send only selected shape for fit/optimize; all shapes for best_shape
+  var shapesPayload = mode === 'best_shape'
+    ? SHAPES.map(function(s) { return { name: s.name, pts: s.pts }; })
+    : [{ name: SHAPES[selectedShapeIdx].name, pts: SHAPES[selectedShapeIdx].pts }];
 
   var body = {
     mode: mode,
     shapes: shapesPayload,
-    shape_index: selectedShapeIdx !== null ? selectedShapeIdx : 0,
+    shape_index: mode === 'best_shape' ? 0 : 0,
     center_point: currentCenter,
-    zoom_level: map.getZoom(),
-    bbox: map.getBounds().toBBoxString(),
   };
-
-  // For quick fit, include explicit rotation/scale
-  if (mode === 'fit') {
-    body.rotation_deg = 0;
-    body.scale = 0.012;
-  }
 
   try {
     var resp = await fetch('/api/match', {
@@ -440,19 +434,19 @@ async function handleFit(mode) {
       fittedCoords = data.route;
       fittedLayer = L.polyline(fittedCoords, { color: '#00b894', weight: 4 }).addTo(map);
 
-      // If the engine found a better shape or shifted centre, update UI
-      if (typeof data.shape_index === 'number' && data.shape_index !== selectedShapeIdx) {
-        selectShape(data.shape_index);
-      }
+      // Map engine shape_index back to global SHAPES index
+      var resolvedIdx = (mode === 'best_shape' && typeof data.shape_index === 'number')
+        ? data.shape_index : selectedShapeIdx;
+      if (resolvedIdx !== selectedShapeIdx) selectShape(resolvedIdx);
+
       if (data.center) {
-        // Pan map to the optimised centre
         map.flyTo(data.center, map.getZoom(), { duration: 0.8 });
       }
 
       // Redraw ghost with optimised params if available
       if (data.rotation || data.scale || data.center) {
         drawGhostWithParams(
-          typeof data.shape_index === 'number' ? data.shape_index : selectedShapeIdx,
+          resolvedIdx,
           data.center || currentCenter,
           data.scale || 0.012,
           data.rotation || 0
@@ -462,9 +456,7 @@ async function handleFit(mode) {
       document.getElementById('btn-export').disabled = false;
       var msg = mode === 'best_shape'
         ? 'Best shape: ' + (data.shape_name || 'unknown') + ' (score ' + data.score + ' m)'
-        : mode === 'optimize'
-        ? 'Optimized! rot=' + Math.round(data.rotation) + '° scale=' + (data.scale*1000).toFixed(1) + ' (score ' + data.score + ' m)'
-        : 'Shape fitted to streets!';
+        : 'Fitted! rot=' + Math.round(data.rotation) + '\u00B0 scale=' + (data.scale*1000).toFixed(1) + ' (score ' + data.score + ' m)';
       toast(msg, 'green');
     } else {
       toast('No matching route found. Try a denser area.');
@@ -516,7 +508,7 @@ function handleExport() {
   if (!fittedCoords || !fittedCoords.length) return;
   var name = SHAPES[selectedShapeIdx] ? SHAPES[selectedShapeIdx].name : 'GPS-Art';
   var gpx = '<?xml version="1.0" encoding="UTF-8"?>\n' +
-    '<gpx version="1.1" creator="GPS Art App"\n' +
+    '<gpx version="1.1" creator="Run2Art"\n' +
     ' xmlns="http://www.topografix.com/GPX/1/1">\n' +
     ' <trk><name>' + name + '</name><trkseg>\n';
   fittedCoords.forEach(function(c) {
@@ -526,7 +518,7 @@ function handleExport() {
   var blob = new Blob([gpx], { type: 'application/gpx+xml' });
   var a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = name.replace(/\s+/g, '_') + '_gps_art.gpx';
+  a.download = name.replace(/\s+/g, '_') + '_run2art.gpx';
   a.click();
 }
 

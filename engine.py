@@ -1,72 +1,59 @@
 """
-engine.py — GPS Art Python Geospatial Engine  v4
-=================================================
+engine.py — Run2Art Geospatial Engine v5
+========================================
+Transforms geometric shapes into GPS art running routes on real road networks.
 
-Major improvements over v3 (informed by deep research across GPS art ecosystem):
-
-  v4 additions:
-  5. Shape-aware routing — custom edge weights penalise road segments
-     far from the ideal shape line (Waschk & Krüger 2018 multi-objective)
-  6. Segment-constrained routing — per-segment local penalty fields prevent
-     the router from drifting toward other parts of the shape
-  7. Adaptive densification — tighter spacing on curves, looser on straights
-  8. Enhanced scoring v4:
-     a. Hausdorff distance (from dsleo/stravart) — worst-case deviation
-     b. Perpendicular segment distance (Li & Fu 2026 ScoreS) — true
-        geometric distance to ideal line segments, not just nearest points
-     c. Length-ratio fidelity (Li & Fu 2026) — prevents stretching/compression
-  9. point_to_segment_distance helper for precise geometric evaluation
-  10. Shape-similarity clustering — rotation-invariant RMS distance between
-      normalised shape outlines; powers intelligent best-shape search that
-      propagates promising parameters to geometrically similar shapes
-
-  v3 (preserved):
-  1. Two-step coarse→fine optimisation
-  2. Shape densification (uniform)
-  3. Bidirectional scoring (forward + reverse)
-  4. Centre-point shifting
-
-Research references:
-  - Waschk & Krüger, SIGGRAPH Asia 2018 / CVM 2019: multi-objective shortest
-    path minimising Riemannian distance; standard routing sacrifices details
-  - Li & Fu, ISPRS 2026: invariant spatial relationships (turning angles,
-    length ratios) + subgraph matching; perpendicular distance scoring
-  - Balduz, TU Vienna 2017: rasterisation proximity scoring for fast screening
-  - dsleo/stravart (GitHub, 2024): Hausdorff distance, area-difference scoring,
-    Optuna Bayesian optimization over position/rotation/scale
-  - GPSArtify / GPS Art App: project-and-route approach; community feedback
-    reveals "not enough roads" failures from naive shape matching
-  - gps2gpx.art: manual overlay approach — shows difficulty of automation
+Algorithms:
+  - Shape-aware routing: edge weights penalise deviation from ideal shape
+    (Waschk & Krüger, SIGGRAPH Asia 2018 / CVM 2019)
+  - Adaptive densification: tighter spacing on curves, looser on straights
+  - 6-component scoring: coverage, detour, Hausdorff, perpendicular,
+    turning-angle, length-ratio (Li & Fu 2026; dsleo/stravart 2024)
+  - Shape-similarity clustering for best-shape search
+  - Two-step coarse→fine optimisation (Balduz 2017 inspired)
 
 Modes:
-  "fit"         single shape with given rotation & scale (uses densification)
-  "optimize"    two-step coarse→fine for a single shape
-  "best_shape"  two-step coarse→fine across ALL shapes
+  "fit"         Smart quick fit — light coarse scan + shape-aware routing
+  "optimize"    Full two-step coarse→fine for a single shape
+  "best_shape"  Two-step coarse→fine across ALL shapes with similarity boost
 
-Payload (stdin JSON):
-  mode, shapes, shape_index, center_point, rotation_deg, scale, zoom_level, bbox
-
-Output (stdout JSON):
-  { route, score, rotation, scale, center, shape_index, shape_name }
-  or { error }
+I/O: stdin JSON → stdout JSON
 """
 
-import sys, json, math, urllib.request, time
+import sys
+import json
+import math
+import urllib.request
+import time
+
+# ---------------------------------------------------------------------------
+# Logging
+# ---------------------------------------------------------------------------
+
+def log(msg):
+    """Log to stderr (visible in server console, not in stdout JSON)."""
+    print(msg, file=sys.stderr, flush=True)
+
+# ---------------------------------------------------------------------------
+# Optional dependencies
+# ---------------------------------------------------------------------------
 
 try:
     import osmnx as ox
     import networkx as nx
     HAS_OSMNX = True
+    log("[engine] osmnx + networkx loaded — shape-aware routing enabled")
 except ImportError:
     HAS_OSMNX = False
+    log("[engine] WARNING: osmnx not found — OSRM fallback only")
 
 
-# ╔═══════════════════════════════════════════════════════╗
-# ║  GEOMETRY HELPERS                                     ║
-# ╚═══════════════════════════════════════════════════════╝
+# ═══════════════════════════════════════════════════════════════════════════
+#  GEOMETRY HELPERS
+# ═══════════════════════════════════════════════════════════════════════════
 
 def haversine(lat1, lon1, lat2, lon2):
-    """Distance in metres between two lat/lng points."""
+    """Distance in metres between two geographic points."""
     R = 6_371_000
     p = math.pi / 180
     a = (math.sin((lat2 - lat1) * p / 2) ** 2 +
@@ -76,7 +63,7 @@ def haversine(lat1, lon1, lat2, lon2):
 
 
 def rotate_shape(pts, angle_deg):
-    """Rotate normalised [0,1] points around centre (0.5, 0.5)."""
+    """Rotate normalised [0,1] points around (0.5, 0.5)."""
     cx, cy = 0.5, 0.5
     rad = math.radians(angle_deg)
     cos_a, sin_a = math.cos(rad), math.sin(rad)
@@ -85,7 +72,7 @@ def rotate_shape(pts, angle_deg):
 
 
 def shape_to_latlngs(pts, center, scale_deg, rotation_deg=0):
-    """Convert normalised shape points → geographic lat/lng."""
+    """Convert normalised shape → geographic lat/lng coordinates."""
     if rotation_deg:
         pts = rotate_shape(pts, rotation_deg)
     cx, cy = 0.5, 0.5
@@ -93,7 +80,7 @@ def shape_to_latlngs(pts, center, scale_deg, rotation_deg=0):
              center[1] + (x - cx) * scale_deg * 1.4] for x, y in pts]
 
 
-def _sample_polyline(pts, n):
+def sample_polyline(pts, n):
     """Evenly sample *n* points along a lat/lng polyline."""
     if len(pts) < 2:
         return list(pts)
@@ -125,70 +112,36 @@ def turning_angle(a, b, c):
     d1 = math.atan2(b[0] - a[0], b[1] - a[1])
     d2 = math.atan2(c[0] - b[0], c[1] - b[1])
     diff = math.degrees(d2 - d1)
-    while diff > 180: diff -= 360
-    while diff < -180: diff += 360
+    while diff > 180:
+        diff -= 360
+    while diff < -180:
+        diff += 360
     return diff
 
 
-def point_to_segment_distance(p, a, b):
-    """
-    Perpendicular distance (m) from point p to line segment a→b.
-    Falls back to nearest endpoint if projection is outside segment.
-    Inspired by Li & Fu (2026) perpendicular distance evaluation.
-    """
-    dx = b[0] - a[0]
-    dy = b[1] - a[1]
-    seg_len_sq = dx * dx + dy * dy
-    if seg_len_sq < 1e-14:
+def point_to_segment_dist(p, a, b):
+    """Perpendicular distance (m) from point p to segment a→b."""
+    dx, dy = b[0] - a[0], b[1] - a[1]
+    seg_sq = dx * dx + dy * dy
+    if seg_sq < 1e-14:
         return haversine(p[0], p[1], a[0], a[1])
-    t = max(0.0, min(1.0, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / seg_len_sq))
+    t = max(0.0, min(1.0, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / seg_sq))
     proj = [a[0] + t * dx, a[1] + t * dy]
     return haversine(p[0], p[1], proj[0], proj[1])
 
 
-def length_ratio_fidelity(route_pts, ideal_pts):
-    """
-    Measure how well consecutive-segment length ratios match between
-    route and ideal shape.  From Li & Fu (2026) invariant spatial relations.
-    Returns a penalty score (0 = perfect match).
-    """
-    def seg_lengths(pts):
-        return [haversine(pts[i][0], pts[i][1], pts[i+1][0], pts[i+1][1])
-                for i in range(len(pts) - 1)]
-    r_lens = seg_lengths(route_pts)
-    i_lens = seg_lengths(ideal_pts)
-    if len(r_lens) < 2 or len(i_lens) < 2:
-        return 0.0
-    # Resample to same number of segments
-    n = min(len(r_lens), len(i_lens), 20)
-    r_s = _sample_lengths(r_lens, n)
-    i_s = _sample_lengths(i_lens, n)
-    diffs = []
-    for k in range(len(r_s) - 1):
-        r_ratio = r_s[k+1] / max(r_s[k], 1.0)
-        i_ratio = i_s[k+1] / max(i_s[k], 1.0)
-        diffs.append(abs(r_ratio - i_ratio))
-    return sum(diffs) / max(len(diffs), 1)
+def min_dist_to_polyline(p, polyline):
+    """Minimum distance (m) from point p to any segment of a polyline."""
+    return min(point_to_segment_dist(p, polyline[j], polyline[j + 1])
+               for j in range(len(polyline) - 1))
 
 
-def _sample_lengths(lengths, n):
-    """Resample a list of segment lengths to n values."""
-    if len(lengths) <= n:
-        return lengths
-    step = len(lengths) / n
-    return [lengths[int(i * step)] for i in range(n)]
+# ═══════════════════════════════════════════════════════════════════════════
+#  DENSIFICATION
+# ═══════════════════════════════════════════════════════════════════════════
 
-
-# ╔═══════════════════════════════════════════════════════╗
-# ║  SHAPE DENSIFICATION                                  ║
-# ╚═══════════════════════════════════════════════════════╝
-
-def densify_waypoints(waypoints, spacing_m=120):
-    """
-    Insert intermediate waypoints so consecutive points are ≤ spacing_m apart.
-    This is the KEY to shape recognisability — it prevents the router from
-    taking short-cuts that destroy the shape's silhouette.
-    """
+def densify(waypoints, spacing_m=120):
+    """Insert points so consecutive waypoints are ≤ spacing_m apart."""
     dense = [waypoints[0]]
     for i in range(len(waypoints) - 1):
         a, b = waypoints[i], waypoints[i + 1]
@@ -202,38 +155,23 @@ def densify_waypoints(waypoints, spacing_m=120):
 
 
 def adaptive_densify(waypoints, base_spacing=120, curve_spacing=50):
-    """
-    Adaptive densification: tighter spacing on high-curvature segments,
-    looser on straight segments.  A significant improvement over uniform
-    densification for shape fidelity.
-
-    Research insight: Waschk & Krüger (2018) note that geometric details
-    are lost at curves; dsleo/stravart uses angle comparison to identify
-    problem areas.  This addresses both.
-    """
+    """Adaptive densification: tighter on curves, looser on straights."""
     if len(waypoints) < 3:
-        return densify_waypoints(waypoints, spacing_m=base_spacing)
-
+        return densify(waypoints, spacing_m=base_spacing)
     dense = [waypoints[0]]
     for i in range(len(waypoints) - 1):
         a, b = waypoints[i], waypoints[i + 1]
-        # Determine curvature at this segment
         curvature = 0.0
         if i > 0:
-            curvature = max(curvature,
-                            abs(turning_angle(waypoints[i-1], a, b)))
+            curvature = max(curvature, abs(turning_angle(waypoints[i-1], a, b)))
         if i + 2 < len(waypoints):
-            curvature = max(curvature,
-                            abs(turning_angle(a, b, waypoints[i+2])))
-
-        # High curvature (> 30°) → tighter spacing
+            curvature = max(curvature, abs(turning_angle(a, b, waypoints[i+2])))
         if curvature > 60:
             spacing = curve_spacing
         elif curvature > 30:
             spacing = (base_spacing + curve_spacing) / 2
         else:
             spacing = base_spacing
-
         dist = haversine(a[0], a[1], b[0], b[1])
         n_seg = max(1, int(round(dist / spacing)))
         for j in range(1, n_seg + 1):
@@ -243,76 +181,32 @@ def adaptive_densify(waypoints, base_spacing=120, curve_spacing=50):
     return dense
 
 
-# ╔═══════════════════════════════════════════════════════╗
-# ║  SCORING FUNCTIONS                                     ║
-# ╚═══════════════════════════════════════════════════════╝
-
-def hausdorff_distance(pts_a, pts_b):
-    """
-    Hausdorff distance between two point sets (metres).
-    Captures worst-case deviation — from dsleo/stravart metrics.py (2024).
-    scipy.spatial.distance.directed_hausdorff equivalent, but pure-Python.
-    """
-    def directed_haus(s1, s2):
-        return max(min(haversine(a[0], a[1], b[0], b[1]) for b in s2) for a in s1)
-    return max(directed_haus(pts_a, pts_b), directed_haus(pts_b, pts_a))
-
-
-def perpendicular_score(route_pts, ideal_pts):
-    """
-    For each route point, compute perpendicular distance to the nearest
-    ideal shape *segment* (not just nearest point).
-    From Li & Fu (2026) ScoreS formula.
-    """
-    if len(ideal_pts) < 2 or not route_pts:
-        return 0.0
-    total = 0.0
-    # Sample route to limit computation
-    step = max(1, len(route_pts) // 60)
-    count = 0
-    for i in range(0, len(route_pts), step):
-        rp = route_pts[i]
-        min_d = float('inf')
-        for j in range(len(ideal_pts) - 1):
-            d = point_to_segment_distance(rp, ideal_pts[j], ideal_pts[j+1])
-            if d < min_d:
-                min_d = d
-        total += min_d
-        count += 1
-    return total / max(count, 1)
-
+# ═══════════════════════════════════════════════════════════════════════════
+#  SCORING
+# ═══════════════════════════════════════════════════════════════════════════
 
 def bidirectional_score(route, ideal_pts):
     """
-    Enhanced scoring v4 — incorporates findings from:
-      - Li & Fu (2026): perpendicular distance + turning angles + length ratios
-      - dsleo/stravart: Hausdorff distance for worst-case capture
-      - Waschk & Krüger (2018): shape fidelity emphasis
-
-    Components:
-      1. Forward  (ideal→route): shape *coverage*
-      2. Reverse  (route→ideal): *detour* penalty
-      3. Hausdorff distance: worst-case deviation
-      4. Perpendicular segment distance (Li & Fu ScoreS)
-      5. Turning-angle fidelity
-      6. Length-ratio fidelity
-
-    Returns a single float (lower = better, in metres).
+    6-component score (lower = better, in metres).
+      1. Forward coverage   (ideal→route)     weight 0.30
+      2. Reverse detour     (route→ideal)     weight 0.15
+      3. Hausdorff          (worst-case)      weight 0.10
+      4. Perpendicular      (to segments)     weight 0.20
+      5. Turning-angle      (fidelity)        weight 0.15
+      6. Length-ratio        (fidelity)        weight 0.10
     """
     if not route or len(route) < 2:
         return 1e9
 
-    n_ideal = min(80, max(30, len(ideal_pts) * 3))
-    n_route = min(150, max(40, len(route)))
-    ideal_s = _sample_polyline(ideal_pts, n_ideal)
-    route_s = _sample_polyline(route, n_route)
-
+    n_i = min(80, max(30, len(ideal_pts) * 3))
+    n_r = min(150, max(40, len(route)))
+    ideal_s = sample_polyline(ideal_pts, n_i)
+    route_s = sample_polyline(route, n_r)
     if not ideal_s or not route_s:
         return 1e9
 
-    # ── 1. Forward: every ideal sample → nearest route sample ───────
-    fwd_total = 0.0
-    covered = 0
+    # 1. Forward: ideal → nearest route point
+    fwd_total, covered = 0.0, 0
     for pt in ideal_s:
         d = min(haversine(pt[0], pt[1], rp[0], rp[1]) for rp in route_s)
         fwd_total += d
@@ -321,275 +215,155 @@ def bidirectional_score(route, ideal_pts):
     fwd_avg = fwd_total / len(ideal_s)
     coverage = covered / len(ideal_s)
 
-    # ── 2. Reverse: every route sample → nearest ideal sample ───────
-    rev_total = 0.0
-    for rp in route_s:
-        d = min(haversine(rp[0], rp[1], pt[0], pt[1]) for pt in ideal_s)
-        rev_total += d
-    rev_avg = rev_total / len(route_s)
+    # 2. Reverse: route → nearest ideal point
+    rev_avg = sum(min(haversine(rp[0], rp[1], pt[0], pt[1])
+                      for pt in ideal_s) for rp in route_s) / len(route_s)
 
-    # ── 3. Hausdorff: worst-case deviation ──────────────────────────
-    haus_s = _sample_polyline(ideal_pts, min(40, len(ideal_pts)))
-    haus_r = _sample_polyline(route, min(60, len(route)))
-    haus = hausdorff_distance(haus_s, haus_r)
+    # 3. Hausdorff distance (sampled)
+    hs_i = sample_polyline(ideal_pts, min(40, len(ideal_pts)))
+    hs_r = sample_polyline(route, min(60, len(route)))
+    haus = max(
+        max(min(haversine(a[0], a[1], b[0], b[1]) for b in hs_r) for a in hs_i),
+        max(min(haversine(a[0], a[1], b[0], b[1]) for b in hs_i) for a in hs_r),
+    )
 
-    # ── 4. Perpendicular segment distance ───────────────────────────
-    perp = perpendicular_score(route_s, ideal_s)
+    # 4. Perpendicular segment distance
+    step = max(1, len(route_s) // 60)
+    perp_pts = route_s[::step]
+    perp = (sum(min_dist_to_polyline(rp, ideal_s) for rp in perp_pts)
+            / len(perp_pts)) if len(ideal_s) >= 2 else 0.0
 
-    # ── 5. Turning-angle fidelity at original waypoints ─────────────
+    # 5. Turning-angle fidelity
     angle_penalty = 0.0
     if len(ideal_pts) >= 3 and len(route) >= 3:
-        route_keys = _sample_polyline(route, len(ideal_pts))
-        angle_diffs = []
-        for k in range(1, min(len(ideal_pts), len(route_keys)) - 1):
-            a_ideal = turning_angle(ideal_pts[k-1], ideal_pts[k], ideal_pts[k+1])
-            a_route = turning_angle(route_keys[k-1], route_keys[k], route_keys[k+1])
-            angle_diffs.append(abs(a_ideal - a_route))
-        if angle_diffs:
-            angle_penalty = (sum(angle_diffs) / len(angle_diffs)) * 1.5
+        rk = sample_polyline(route, len(ideal_pts))
+        diffs = [abs(turning_angle(ideal_pts[k-1], ideal_pts[k], ideal_pts[k+1]) -
+                     turning_angle(rk[k-1], rk[k], rk[k+1]))
+                 for k in range(1, min(len(ideal_pts), len(rk)) - 1)]
+        if diffs:
+            angle_penalty = (sum(diffs) / len(diffs)) * 1.5
 
-    # ── 6. Length-ratio fidelity ────────────────────────────────────
-    lr_penalty = length_ratio_fidelity(
-        _sample_polyline(route, min(20, len(route))),
-        _sample_polyline(ideal_pts, min(20, len(ideal_pts)))
-    ) * 15.0  # Scale to be comparable with metre-based scores
+    # 6. Length-ratio fidelity
+    lr_penalty = _length_ratio_penalty(
+        sample_polyline(route, min(20, len(route))),
+        sample_polyline(ideal_pts, min(20, len(ideal_pts))),
+    )
 
-    # ── Combined score ──────────────────────────────────────────────
-    # Weights informed by ablation analysis across approaches:
-    #   Waschk emphasises fwd (coverage), Li & Fu emphasises perp + angles
-    score = (fwd_avg * 0.30 +
-             rev_avg * 0.15 +
-             haus * 0.10 +
-             perp * 0.20 +
-             angle_penalty * 0.15 +
-             lr_penalty * 0.10)
-
-    # Coverage penalty: if < 75% of shape within 100 m of route
+    score = (fwd_avg * 0.30 + rev_avg * 0.15 + haus * 0.10 +
+             perp * 0.20 + angle_penalty * 0.15 + lr_penalty * 0.10)
     if coverage < 0.75:
         score *= (2.0 - coverage)
-
     return score
 
 
+def _length_ratio_penalty(route_pts, ideal_pts):
+    """Compare consecutive-segment length ratios between route and ideal."""
+    def seg_lens(pts):
+        return [haversine(pts[i][0], pts[i][1], pts[i+1][0], pts[i+1][1])
+                for i in range(len(pts) - 1)]
+    rl, il = seg_lens(route_pts), seg_lens(ideal_pts)
+    n = min(len(rl), len(il), 20)
+    if n < 2:
+        return 0.0
+    def pick(lst, cnt):
+        if len(lst) <= cnt:
+            return lst
+        s = len(lst) / cnt
+        return [lst[int(i * s)] for i in range(cnt)]
+    rs, iss = pick(rl, n), pick(il, n)
+    diffs = [abs(rs[k+1] / max(rs[k], 1.0) - iss[k+1] / max(iss[k], 1.0))
+             for k in range(len(rs) - 1)]
+    return (sum(diffs) / len(diffs)) * 15.0 if diffs else 0.0
+
+
 def coarse_proximity_score(G, waypoints):
-    """
-    FAST coarse score — no routing needed.
-    Measures how close each waypoint is to its nearest road node.
-    Uses osmnx nearest_nodes (KD-tree internally).
-    """
+    """Fast coarse score — proximity of waypoints to nearest road nodes."""
     if G is None:
         return 1e9
-    lats = [w[0] for w in waypoints]
-    lngs = [w[1] for w in waypoints]
     try:
-        nearest_ids = ox.nearest_nodes(G, lngs, lats)
+        nids = ox.nearest_nodes(G, [w[1] for w in waypoints],
+                                   [w[0] for w in waypoints])
     except Exception:
         return 1e9
-
-    distances = []
-    for i, nid in enumerate(nearest_ids):
-        nlat = G.nodes[nid]['y']
-        nlng = G.nodes[nid]['x']
-        distances.append(haversine(lats[i], lngs[i], nlat, nlng))
-
-    if not distances:
-        return 1e9
-    avg_d = sum(distances) / len(distances)
-    max_d = max(distances)
-    return avg_d + max_d * 0.3
+    dists = [haversine(waypoints[i][0], waypoints[i][1],
+                       G.nodes[nid]['y'], G.nodes[nid]['x'])
+             for i, nid in enumerate(nids)]
+    return (sum(dists) / len(dists) + max(dists) * 0.3) if dists else 1e9
 
 
-# ╔═══════════════════════════════════════════════════════╗
-# ║  SNAPPING / ROUTING BACKENDS                           ║
-# ╚═══════════════════════════════════════════════════════╝
+# ═══════════════════════════════════════════════════════════════════════════
+#  ROUTING
+# ═══════════════════════════════════════════════════════════════════════════
 
-def _precompute_shape_distance_weights(G, ideal_line):
-    """
-    Precompute shape-aware edge weights.  For each edge in the graph,
-    the weight = length + penalty * (distance from edge midpoint to
-    nearest ideal shape segment).
-
-    This is the KEY innovation from Waschk & Krüger (2018):
-    "single-source multi-objective shortest path algorithm that
-    minimizes the Riemannian distance" — we approximate this by
-    augmenting edge weights with shape deviation penalty.
-    """
-    attr = 'shape_weight'
-    PENALTY_FACTOR = 3.0  # How strongly deviation penalises vs raw distance
-    for u, v, k, data in G.edges(keys=True, data=True):
+def _set_shape_weights(G, ideal_line, penalty=3.0, attr='shape_weight'):
+    """Set shape-aware edge weights on graph (Waschk & Krüger 2018)."""
+    for u, v, _k, data in G.edges(keys=True, data=True):
         length = data.get('length', 50)
-        # Edge midpoint
-        mid_lat = (G.nodes[u]['y'] + G.nodes[v]['y']) / 2
-        mid_lng = (G.nodes[u]['x'] + G.nodes[v]['x']) / 2
-        mid = [mid_lat, mid_lng]
-        # Distance to nearest ideal segment
-        min_d = float('inf')
-        for j in range(len(ideal_line) - 1):
-            d = point_to_segment_distance(mid, ideal_line[j], ideal_line[j+1])
-            if d < min_d:
-                min_d = d
-        # Combined weight: original length + penalty for deviation
-        data[attr] = length + PENALTY_FACTOR * min_d
+        mid = [(G.nodes[u]['y'] + G.nodes[v]['y']) / 2,
+               (G.nodes[u]['x'] + G.nodes[v]['x']) / 2]
+        data[attr] = length + penalty * min_dist_to_polyline(mid, ideal_line)
     return attr
 
 
-def snap_with_graph(G, waypoints, shape_aware=False, ideal_line=None):
-    """
-    Route through pre-fetched osmnx graph via shortest path.
-
-    If shape_aware=True and ideal_line provided, uses shape-deviation
-    weighted edges (Waschk & Krüger multi-objective approach) instead of
-    pure distance.  This is the single biggest improvement for recognisability.
-    """
+def route_graph(G, waypoints, weight='length'):
+    """Route through osmnx graph using given edge weight attribute."""
     if G is None:
         return None
     try:
-        weight = 'length'
-        if shape_aware and ideal_line and len(ideal_line) >= 2:
-            weight = _precompute_shape_distance_weights(G, ideal_line)
-
         node_ids = [ox.nearest_nodes(G, w[1], w[0]) for w in waypoints]
-        full_route = []
+        full = []
         for i in range(len(node_ids) - 1):
             o, d = node_ids[i], node_ids[i + 1]
             if o == d:
                 continue
             try:
-                pn = nx.shortest_path(G, o, d, weight=weight)
+                path = nx.shortest_path(G, o, d, weight=weight)
             except nx.NetworkXNoPath:
-                # Fallback: try plain length if shape-aware fails
                 if weight != 'length':
                     try:
-                        pn = nx.shortest_path(G, o, d, weight='length')
+                        path = nx.shortest_path(G, o, d, weight='length')
                     except nx.NetworkXNoPath:
                         continue
                 else:
                     continue
-            for nid in pn:
+            for nid in path:
                 pt = [G.nodes[nid]['y'], G.nodes[nid]['x']]
-                if not full_route or full_route[-1] != pt:
-                    full_route.append(pt)
-        return full_route if len(full_route) >= 2 else None
+                if not full or full[-1] != pt:
+                    full.append(pt)
+        return full if len(full) >= 2 else None
     except Exception:
         return None
 
 
-def snap_with_graph_segment_constrained(G, waypoints, ideal_line):
-    """
-    Segment-constrained routing: for each consecutive pair of waypoints,
-    find the shortest path using shape-aware weights where the ideal
-    sub-segment is used as the local reference line.
-
-    This is more precise than global shape-aware routing because each
-    segment gets its own local penalty field, preventing the router from
-    drifting toward other parts of the shape.
-
-    Combines insights from:
-    - Waschk & Krüger (2018): per-segment shape fidelity
-    - Li & Fu (2026): segment-level matching with local constraints
-    """
+def route_shape_aware(G, waypoints, ideal_line):
+    """Route with shape-deviation weighted edges."""
     if G is None or not ideal_line or len(ideal_line) < 2:
-        return snap_with_graph(G, waypoints)
-
-    try:
-        PENALTY_FACTOR = 4.0
-        node_ids = [ox.nearest_nodes(G, w[1], w[0]) for w in waypoints]
-
-        # Map each waypoint to its nearest ideal line segment
-        wp_to_ideal_idx = []
-        for w in waypoints:
-            best_j = 0
-            best_d = float('inf')
-            for j in range(len(ideal_line) - 1):
-                d = point_to_segment_distance(w, ideal_line[j], ideal_line[j+1])
-                if d < best_d:
-                    best_d = d
-                    best_j = j
-            wp_to_ideal_idx.append(best_j)
-
-        full_route = []
-        for i in range(len(node_ids) - 1):
-            o, d = node_ids[i], node_ids[i + 1]
-            if o == d:
-                continue
-
-            # Local ideal sub-segment with context
-            seg_start = max(0, wp_to_ideal_idx[i] - 1)
-            seg_end = min(len(ideal_line), wp_to_ideal_idx[min(i+1, len(wp_to_ideal_idx)-1)] + 2)
-            local_ideal = ideal_line[seg_start:seg_end]
-            if len(local_ideal) < 2:
-                local_ideal = ideal_line
-
-            # Set local shape weights
-            for u, v, k, data in G.edges(keys=True, data=True):
-                length = data.get('length', 50)
-                mid_lat = (G.nodes[u]['y'] + G.nodes[v]['y']) / 2
-                mid_lng = (G.nodes[u]['x'] + G.nodes[v]['x']) / 2
-                mid = [mid_lat, mid_lng]
-                min_dist = min(point_to_segment_distance(mid, local_ideal[j], local_ideal[j+1])
-                               for j in range(len(local_ideal) - 1))
-                data['seg_weight'] = length + PENALTY_FACTOR * min_dist
-
-            try:
-                pn = nx.shortest_path(G, o, d, weight='seg_weight')
-            except nx.NetworkXNoPath:
-                try:
-                    pn = nx.shortest_path(G, o, d, weight='length')
-                except nx.NetworkXNoPath:
-                    continue
-
-            for nid in pn:
-                pt = [G.nodes[nid]['y'], G.nodes[nid]['x']]
-                if not full_route or full_route[-1] != pt:
-                    full_route.append(pt)
-
-        return full_route if len(full_route) >= 2 else None
-    except Exception:
-        return snap_with_graph(G, waypoints)
+        return route_graph(G, waypoints)
+    attr = _set_shape_weights(G, ideal_line)
+    return route_graph(G, waypoints, weight=attr)
 
 
-def snap_osrm(waypoints):
-    """Route via public OSRM demo server."""
-    full_route = []
+def route_osrm(waypoints):
+    """Route via public OSRM demo server (foot profile)."""
+    full = []
     for i in range(len(waypoints) - 1):
         lat1, lon1 = waypoints[i]
         lat2, lon2 = waypoints[i + 1]
-        coords = f"{lon1},{lat1};{lon2},{lat2}"
-        url = (f"https://router.project-osrm.org/route/v1/foot/{coords}"
-               f"?overview=full&geometries=geojson")
+        url = (f"https://router.project-osrm.org/route/v1/foot/"
+               f"{lon1},{lat1};{lon2},{lat2}?overview=full&geometries=geojson")
         try:
-            req = urllib.request.Request(url, headers={"User-Agent": "GPSArtApp/1.0"})
+            req = urllib.request.Request(url, headers={"User-Agent": "Run2Art/1.0"})
             with urllib.request.urlopen(req, timeout=10) as resp:
                 data = json.loads(resp.read())
             if data.get("routes"):
                 for lon, lat in data["routes"][0]["geometry"]["coordinates"]:
                     pt = [lat, lon]
-                    if not full_route or full_route[-1] != pt:
-                        full_route.append(pt)
+                    if not full or full[-1] != pt:
+                        full.append(pt)
         except Exception:
             continue
         time.sleep(0.05)
-    return full_route if len(full_route) >= 2 else None
-
-
-def snap_osmnx(waypoints, center, dist=1500):
-    """One-shot: fetch graph + route (for simple fit mode)."""
-    G = ox.graph_from_point((center[0], center[1]), dist=dist, network_type='walk')
-    if G.number_of_edges() < 10:
-        return None
-    return snap_with_graph(G, waypoints)
-
-
-def snap(waypoints, center):
-    """Try osmnx then OSRM."""
-    if HAS_OSMNX:
-        try:
-            r = snap_osmnx(waypoints, center)
-            if r:
-                return r
-        except Exception:
-            pass
-    return snap_osrm(waypoints)
+    return full if len(full) >= 2 else None
 
 
 def fetch_graph(center, dist=2500):
@@ -597,95 +371,195 @@ def fetch_graph(center, dist=2500):
     if not HAS_OSMNX:
         return None
     try:
-        G = ox.graph_from_point((center[0], center[1]), dist=dist, network_type='walk')
+        G = ox.graph_from_point((center[0], center[1]), dist=dist,
+                                network_type='walk')
         return G if G.number_of_edges() >= 10 else None
-    except Exception:
+    except Exception as e:
+        log(f"[fetch_graph] Error: {e}")
         return None
 
 
-# ╔═══════════════════════════════════════════════════════╗
-# ║  OFFSET / GRID GENERATION                              ║
-# ╚═══════════════════════════════════════════════════════╝
+# ═══════════════════════════════════════════════════════════════════════════
+#  ROUTE + SCORE HELPER
+# ═══════════════════════════════════════════════════════════════════════════
+
+def fit_and_score(G, pts, rot, scale, center,
+                  dense_spacing=80, curve_spacing=35):
+    """
+    Densify → route (shape-aware if possible) → score.
+    Returns (score, route) or (1e9, None).
+    """
+    wps = shape_to_latlngs(pts, center, scale, rot)
+    dense = adaptive_densify(wps, base_spacing=dense_spacing,
+                             curve_spacing=curve_spacing)
+    ideal = adaptive_densify(wps, base_spacing=60, curve_spacing=25)
+
+    route = None
+    if G:
+        route = route_shape_aware(G, dense, ideal)
+        if not route:
+            route = route_graph(G, dense)
+    if not route:
+        route = route_osrm(dense)
+    if not route:
+        return (1e9, None)
+
+    return (bidirectional_score(route, ideal), route)
+
+
+def make_result(route, score, rot, scale, center, idx=None, name=""):
+    """Build a standard result dict."""
+    r = {
+        "route": route,
+        "score": round(score, 1),
+        "rotation": round(rot, 1),
+        "scale": round(scale, 5),
+        "center": [round(center[0], 6), round(center[1], 6)],
+    }
+    if idx is not None:
+        r["shape_index"] = idx
+    if name:
+        r["shape_name"] = name
+    return r
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  GRID GENERATION
+# ═══════════════════════════════════════════════════════════════════════════
 
 DEG_PER_KM_LAT = 0.009
 DEG_PER_KM_LNG = 0.012
 
 
 def make_offsets(km_range, steps):
-    """Generate (dlat, dlng) tuples covering ±km_range in a grid."""
-    offsets = []
+    """Generate (dlat, dlng) grid covering ±km_range."""
     vals = [0.0]
     for s in range(1, steps):
         v = (s / max(steps - 1, 1)) * km_range
         vals.extend([v, -v])
-    for dlat_km in vals:
-        for dlng_km in vals:
-            offsets.append((dlat_km * DEG_PER_KM_LAT,
-                            dlng_km * DEG_PER_KM_LNG))
-    return offsets
+    return [(dlat * DEG_PER_KM_LAT, dlng * DEG_PER_KM_LNG)
+            for dlat in vals for dlng in vals]
 
-
-# ╔═══════════════════════════════════════════════════════╗
-# ║  TWO-STEP OPTIMISER CORE                               ║
-# ╚═══════════════════════════════════════════════════════╝
 
 def coarse_grid_search(G, pts, center, rotations, scales, offsets,
                        densify_spacing=200):
-    """
-    STEP 1 — Coarse: evaluate all combos using proximity scoring only
-    (no expensive routing).  Returns sorted list of (score, rot, sc, center).
-    """
+    """Coarse scan: proximity scoring only (no routing). Returns sorted list."""
     results = []
     for dlat, dlng in offsets:
         c = [center[0] + dlat, center[1] + dlng]
         for sc in scales:
             for rot in rotations:
                 wps = shape_to_latlngs(pts, c, sc, rot)
-                dense = densify_waypoints(wps, spacing_m=densify_spacing)
-                score = coarse_proximity_score(G, dense)
-                results.append((score, rot, sc, c))
+                d = densify(wps, spacing_m=densify_spacing)
+                results.append((coarse_proximity_score(G, d), rot, sc, c))
     results.sort(key=lambda x: x[0])
     return results
 
 
-def fine_evaluate(G, pts, rot, sc, center, dense_spacing=120):
-    """
-    STEP 2 — Fine: adaptive densification → shape-aware routing →
-    enhanced bidirectional score.
-    v4: Uses segment-constrained routing and adaptive densification.
-    Returns (score, route) or (1e9, None).
-    """
-    wps = shape_to_latlngs(pts, center, sc, rot)
-    dense = adaptive_densify(wps, base_spacing=dense_spacing, curve_spacing=50)
-    ideal = adaptive_densify(wps, base_spacing=80, curve_spacing=30)
+# ═══════════════════════════════════════════════════════════════════════════
+#  MODE: FIT (Smart Quick Fit)
+# ═══════════════════════════════════════════════════════════════════════════
 
-    # Try segment-constrained routing first (best quality)
-    route = None
+def mode_fit(payload):
+    """
+    Smart Quick Fit — light coarse scan + shape-aware routing.
+      Step 1: 360 proximity combos (8 rotations × 5 scales × 9 offsets)
+      Step 2: Route top-4 with ±15° / ±10% fine variations
+    """
+    shapes = payload.get("shapes", [])
+    idx = payload.get("shape_index", 0)
+    center = payload.get("center_point", [51.505, -0.09])
+
+    if idx < 0 or idx >= len(shapes):
+        return {"error": "Invalid shape index"}
+
+    pts = shapes[idx]["pts"]
+    name = shapes[idx].get("name", "")
+
+    G = fetch_graph(center, dist=2500) if HAS_OSMNX else None
     if G:
-        route = snap_with_graph_segment_constrained(G, dense, ideal)
-        if not route:
-            route = snap_with_graph(G, dense, shape_aware=True, ideal_line=ideal)
-        if not route:
-            route = snap_with_graph(G, dense)
-    if route is None:
-        route = snap_osrm(dense)
-    if not route:
-        return (1e9, None)
+        log(f"[fit] Graph: {G.number_of_nodes()} nodes, "
+            f"{G.number_of_edges()} edges")
 
-    score = bidirectional_score(route, ideal)
-    return (score, route)
+    # Step 1: Coarse scan
+    rotations = list(range(0, 360, 45))                # 8
+    scales = [0.006, 0.009, 0.012, 0.016, 0.021]      # 5
+    offsets = make_offsets(km_range=1.0, steps=2)       # 9
+
+    if G:
+        coarse = coarse_grid_search(G, pts, center, rotations, scales,
+                                    offsets, densify_spacing=150)
+        top = coarse[:4]
+    else:
+        top = [(0, r, s, center)
+               for r in [0, 90, 180, 270] for s in [0.009, 0.012, 0.016]]
+
+    # Step 2: Fine routing
+    best_score, best = 1e9, None
+    n_routed = 0
+
+    for _, rot, sc, c in top:
+        for dr in [0, -15, 15]:
+            for sf in [1.0, 0.90, 1.10]:
+                for dlat, dlng in [(0, 0), (0.001, 0), (-0.001, 0),
+                                   (0, 0.0015), (0, -0.0015)]:
+                    r2, s2 = rot + dr, sc * sf
+                    c2 = [c[0] + dlat, c[1] + dlng]
+                    score, route = fit_and_score(G, pts, r2, s2, c2)
+                    n_routed += 1
+                    if score < best_score:
+                        best_score = score
+                        best = make_result(route, score, r2, s2, c2, idx, name)
+                        log(f"[fit] Best: rot={r2:.0f}° scale={s2:.4f} "
+                            f"score={score:.1f}m")
+
+    log(f"[fit] Done — {n_routed} routings, best={best_score:.1f}m")
+    return best or {"error": "Could not trace shape on road network"}
 
 
-def fine_search_around(G, pts, candidates, n_fine=8):
+# ═══════════════════════════════════════════════════════════════════════════
+#  MODE: OPTIMIZE (Full two-step)
+# ═══════════════════════════════════════════════════════════════════════════
+
+def mode_optimize(payload):
     """
-    For each top coarse candidate, try fine variations (±7° rotation,
-    ±12% scale, ±300 m offset), route + score.  Returns best result dict.
+    Full optimisation for a single shape.
+      Step 1: ~4200 coarse combos (proximity only)
+      Step 2: Top-8 × fine variations with shape-aware routing
     """
-    best_score = 1e9
-    best = None
+    shapes = payload.get("shapes", [])
+    idx = payload.get("shape_index", 0)
+    center = payload.get("center_point", [51.505, -0.09])
 
-    seen = set()
-    kept = []
+    if idx < 0 or idx >= len(shapes):
+        return {"error": "Invalid shape index"}
+
+    pts = shapes[idx]["pts"]
+    name = shapes[idx].get("name", "")
+
+    G = fetch_graph(center, dist=4000)
+    if G is None:
+        return _osrm_optimize(pts, center, idx, name)
+
+    # Step 1: Coarse
+    rotations = list(range(0, 360, 15))
+    scales = [0.005, 0.008, 0.011, 0.014, 0.017, 0.020, 0.025]
+    offsets = make_offsets(km_range=2.0, steps=3)
+    coarse = coarse_grid_search(G, pts, center, rotations, scales,
+                                offsets, densify_spacing=200)
+
+    # Step 2: Fine search
+    best = _fine_search(G, pts, coarse[:10], n_fine=8)
+    if best is None:
+        return {"error": "Could not fit shape. Try a different area."}
+    best["shape_index"] = idx
+    best["shape_name"] = name
+    return best
+
+
+def _fine_search(G, pts, candidates, n_fine=8):
+    """Route top coarse candidates with fine variations."""
+    seen, kept = set(), []
     for _, rot, sc, c in candidates:
         key = (round(rot, 0), round(sc, 4), round(c[0], 4), round(c[1], 4))
         if key not in seen:
@@ -694,219 +568,89 @@ def fine_search_around(G, pts, candidates, n_fine=8):
         if len(kept) >= n_fine:
             break
 
-    rot_deltas = [0, -7, 7, -15, 15]
-    sc_factors = [1.0, 0.88, 1.12]
-    off_deltas = [(0, 0),
-                  (0.003, 0), (-0.003, 0), (0, 0.004), (0, -0.004)]
-
+    best_score, best = 1e9, None
     for rot, sc, c in kept:
-        for dr in rot_deltas:
-            for sf in sc_factors:
-                for do_lat, do_lng in off_deltas:
-                    r2 = rot + dr
-                    s2 = sc * sf
-                    c2 = [c[0] + do_lat, c[1] + do_lng]
-                    score, route = fine_evaluate(G, pts, r2, s2, c2)
+        for dr in [0, -7, 7, -15, 15]:
+            for sf in [1.0, 0.88, 1.12]:
+                for dlat, dlng in [(0, 0), (0.003, 0), (-0.003, 0),
+                                   (0, 0.004), (0, -0.004)]:
+                    r2, s2 = rot + dr, sc * sf
+                    c2 = [c[0] + dlat, c[1] + dlng]
+                    score, route = fit_and_score(G, pts, r2, s2, c2)
                     if score < best_score:
                         best_score = score
-                        best = {
-                            "route": route,
-                            "score": round(score, 1),
-                            "rotation": round(r2, 1),
-                            "scale": round(s2, 5),
-                            "center": [round(c2[0], 6), round(c2[1], 6)],
-                        }
+                        best = make_result(route, score, r2, s2, c2)
     return best
 
 
-# ╔═══════════════════════════════════════════════════════╗
-# ║  MODE HANDLERS                                         ║
-# ╚═══════════════════════════════════════════════════════╝
-
-def mode_fit(payload):
-    """
-    Single fit with given rotation & scale.
-    v4: Uses adaptive densification + shape-aware routing +
-    segment-constrained routing when osmnx is available.
-    """
-    shapes = payload.get("shapes", [])
-    idx = payload.get("shape_index", 0)
-    center = payload.get("center_point", [51.505, -0.09])
-    rot = payload.get("rotation_deg", 0)
-    scale = payload.get("scale", 0.012)
-
-    if idx < 0 or idx >= len(shapes):
-        return {"error": "Invalid shape index"}
-
-    pts = shapes[idx]["pts"]
-    wps = shape_to_latlngs(pts, center, scale, rot)
-    dense = adaptive_densify(wps, base_spacing=120, curve_spacing=50)
-    ideal = adaptive_densify(wps, base_spacing=80, curve_spacing=30)
-
-    # Try shape-aware routing first (requires osmnx)
-    route = None
-    if HAS_OSMNX:
-        try:
-            G = fetch_graph(center, dist=1500)
-            if G:
-                # Segment-constrained routing (best quality)
-                route = snap_with_graph_segment_constrained(G, dense, ideal)
-                if not route:
-                    # Fallback to global shape-aware routing
-                    route = snap_with_graph(G, dense, shape_aware=True, ideal_line=ideal)
-        except Exception:
-            pass
-
-    # Fallback to standard routing
-    if not route:
-        route = snap(dense, center)
-    if not route:
-        return {"error": "Could not trace shape on road network"}
-
-    sc = bidirectional_score(route, ideal)
-    return {
-        "route": route,
-        "score": round(sc, 1),
-        "rotation": rot,
-        "scale": scale,
-        "center": center,
-        "shape_index": idx,
-        "shape_name": shapes[idx].get("name", ""),
-    }
+def _osrm_optimize(pts, center, idx, name):
+    """OSRM-only optimisation fallback."""
+    best_score, best = 1e9, None
+    for sc in [0.008, 0.012, 0.018]:
+        for rot in range(0, 360, 30):
+            score, route = fit_and_score(None, pts, rot, sc, center,
+                                         dense_spacing=150, curve_spacing=60)
+            if score < best_score:
+                best_score = score
+                best = make_result(route, score, rot, sc, center, idx, name)
+    return best or {"error": "Could not fit shape via OSRM."}
 
 
-def mode_optimize(payload):
-    """
-    Two-step optimisation for a single shape.
-
-    Step 1 (COARSE): evaluate ~4200 combos in seconds using
-    proximity-only scoring (no routing).
-
-    Step 2 (FINE): route the top-8 candidates with fine variations,
-    using densified waypoints + bidirectional scoring.
-    Only ~600 actual routings instead of 4200.
-    """
-    shapes = payload.get("shapes", [])
-    idx = payload.get("shape_index", 0)
-    center = payload.get("center_point", [51.505, -0.09])
-
-    if idx < 0 or idx >= len(shapes):
-        return {"error": "Invalid shape index"}
-
-    pts = shapes[idx]["pts"]
-
-    G = fetch_graph(center, dist=4000)
-    if G is None:
-        return _optimize_osrm_fallback(pts, center, idx,
-                                       shapes[idx].get("name", ""))
-
-    # ── Step 1: Coarse grid ─────────────────────────────────────────
-    rotations = list(range(0, 360, 15))           # 24 angles
-    scales = [0.005, 0.008, 0.011, 0.014, 0.017, 0.020, 0.025]
-    offsets = make_offsets(km_range=2.0, steps=3)  # 25 positions
-    # Total: 24 × 7 × 25 = 4200 combos (fast, no routing)
-
-    coarse = coarse_grid_search(G, pts, center, rotations, scales, offsets,
-                                densify_spacing=200)
-    top_n = coarse[:10]
-
-    # ── Step 2: Fine search around top candidates ───────────────────
-    best = fine_search_around(G, pts, top_n, n_fine=8)
-
-    if best is None:
-        return {"error": "Could not fit shape. Try a different area."}
-
-    best["shape_index"] = idx
-    best["shape_name"] = shapes[idx].get("name", "")
-    return best
-
-
-# ╔═══════════════════════════════════════════════════════╗
-# ║  SHAPE SIMILARITY (for intelligent best-shape search)  ║
-# ╚═══════════════════════════════════════════════════════╝
+# ═══════════════════════════════════════════════════════════════════════════
+#  MODE: BEST_SHAPE (all shapes + similarity clustering)
+# ═══════════════════════════════════════════════════════════════════════════
 
 def _resample_normalised(pts, n=36):
-    """Resample a normalised shape to *n* evenly-spaced perimeter points."""
+    """Resample normalised shape to n evenly-spaced perimeter points."""
     if len(pts) < 2:
         return [(0.5, 0.5)] * n
-    # Cumulative distances
     cum = [0.0]
     for i in range(1, len(pts)):
-        dx = pts[i][0] - pts[i - 1][0]
-        dy = pts[i][1] - pts[i - 1][1]
-        cum.append(cum[-1] + math.sqrt(dx * dx + dy * dy))
+        dx, dy = pts[i][0] - pts[i-1][0], pts[i][1] - pts[i-1][1]
+        cum.append(cum[-1] + math.sqrt(dx*dx + dy*dy))
     total = cum[-1]
     if total < 1e-9:
         return [tuple(pts[0])] * n
-    step = total / n
-    result = []
-    seg = 0
+    step, result, seg = total / n, [], 0
     for i in range(n):
         target = i * step
         while seg < len(cum) - 2 and cum[seg + 1] < target:
             seg += 1
-        seg_len = cum[seg + 1] - cum[seg]
-        if seg_len < 1e-12:
+        sl = cum[seg + 1] - cum[seg]
+        if sl < 1e-12:
             result.append((pts[seg][0], pts[seg][1]))
         else:
-            t = (target - cum[seg]) / seg_len
-            result.append((pts[seg][0] + t * (pts[seg + 1][0] - pts[seg][0]),
-                           pts[seg][1] + t * (pts[seg + 1][1] - pts[seg][1])))
+            t = (target - cum[seg]) / sl
+            result.append((pts[seg][0] + t * (pts[seg+1][0] - pts[seg][0]),
+                           pts[seg][1] + t * (pts[seg+1][1] - pts[seg][1])))
     return result
 
 
 def _shape_distance(pts_a, pts_b, n=36):
-    """
-    Rotation-invariant distance between two normalised shapes.
-    Resamples both to *n* points, centres them, then finds the cyclic
-    shift (and direction) that minimises RMS point-to-point distance.
-    """
+    """Rotation-invariant RMS distance between two normalised shapes."""
     a = _resample_normalised(pts_a, n)
     b = _resample_normalised(pts_b, n)
-    # Centre both
-    ax = sum(p[0] for p in a) / n
-    ay = sum(p[1] for p in a) / n
+    ax, ay = sum(p[0] for p in a) / n, sum(p[1] for p in a) / n
     a = [(p[0] - ax, p[1] - ay) for p in a]
-    bx = sum(p[0] for p in b) / n
-    by = sum(p[1] for p in b) / n
+    bx, by = sum(p[0] for p in b) / n, sum(p[1] for p in b) / n
     b = [(p[0] - bx, p[1] - by) for p in b]
 
-    def _rms(seq_a, seq_b, shift):
-        total = 0.0
-        for i in range(n):
-            j = (i + shift) % n
-            dx = seq_a[i][0] - seq_b[j][0]
-            dy = seq_a[i][1] - seq_b[j][1]
-            total += dx * dx + dy * dy
-        return math.sqrt(total / n)
+    def rms(sa, sb, shift):
+        return math.sqrt(sum((sa[i][0] - sb[(i+shift)%n][0])**2 +
+                             (sa[i][1] - sb[(i+shift)%n][1])**2
+                             for i in range(n)) / n)
 
-    min_dist = float('inf')
     b_rev = list(reversed(b))
-    for shift in range(n):
-        d = _rms(a, b, shift)
-        if d < min_dist:
-            min_dist = d
-        d = _rms(a, b_rev, shift)
-        if d < min_dist:
-            min_dist = d
-    return min_dist
+    return min(min(rms(a, b, s), rms(a, b_rev, s)) for s in range(n))
 
 
-def _compute_similarity_map(shapes, threshold=0.15):
-    """
-    Build a dict  shape_index → [list of similar shape indices].
-
-    Shapes whose rotation-invariant distance is below *threshold* are
-    considered similar.  This powers the intelligent best-shape search:
-    if one shape fits well at a location, its neighbours are likely to
-    fit well too (and vice-versa).
-    """
+def _similarity_map(shapes, threshold=0.15):
+    """Build shape_index → [similar indices] dict."""
     ns = len(shapes)
     sim = {i: [] for i in range(ns)}
     for i in range(ns):
         for j in range(i + 1, ns):
-            d = _shape_distance(shapes[i]["pts"], shapes[j]["pts"])
-            if d < threshold:
+            if _shape_distance(shapes[i]["pts"], shapes[j]["pts"]) < threshold:
                 sim[i].append(j)
                 sim[j].append(i)
     return sim
@@ -914,13 +658,10 @@ def _compute_similarity_map(shapes, threshold=0.15):
 
 def mode_best_shape(payload):
     """
-    Two-step optimisation across ALL shapes.
-
-    Step 1: coarse grid for every shape (lighter grid per shape).
-    Step 2: fine routing for the globally top-N candidates,
-            boosted by shape-similarity clustering — similar shapes
-            inherit promising rotation/scale/position parameters from
-            their neighbours.
+    Two-step optimisation across ALL shapes with similarity-boosted selection.
+      Step 1: 324 coarse combos per shape
+      Step 1.5: Similarity boost for geometrically similar shapes
+      Step 2: Fine routing for top-18 candidates
     """
     shapes = payload.get("shapes", [])
     center = payload.get("center_point", [51.505, -0.09])
@@ -931,125 +672,72 @@ def mode_best_shape(payload):
     if G is None:
         return {"error": "Could not fetch road network (osmnx required)."}
 
-    # ── Shape similarity clustering ────────────────────────────────
-    similar_map = _compute_similarity_map(shapes, threshold=0.15)
+    sim_map = _similarity_map(shapes, threshold=0.15)
 
-    # ── Step 1: Coarse for each shape ──────────────────────────────
-    rotations = list(range(0, 360, 30))            # 12 angles
-    scales = [0.007, 0.012, 0.018]                 # 3 sizes
-    offsets = make_offsets(km_range=1.5, steps=2)   # 9 positions
-    # Per shape: 12 × 3 × 9 = 324.  20 shapes → 6480 (all fast)
+    # Step 1: Coarse for each shape
+    rotations = list(range(0, 360, 30))
+    scales = [0.007, 0.012, 0.018]
+    offsets = make_offsets(km_range=1.5, steps=2)
 
     all_coarse = []
     for si, shape in enumerate(shapes):
-        pts = shape["pts"]
+        p = shape["pts"]
         for dlat, dlng in offsets:
             c = [center[0] + dlat, center[1] + dlng]
             for sc in scales:
                 for rot in rotations:
-                    wps = shape_to_latlngs(pts, c, sc, rot)
-                    dense = densify_waypoints(wps, spacing_m=250)
-                    score = coarse_proximity_score(G, dense)
-                    all_coarse.append((score, rot, sc, c, si))
+                    wps = shape_to_latlngs(p, c, sc, rot)
+                    d = densify(wps, spacing_m=250)
+                    all_coarse.append((coarse_proximity_score(G, d),
+                                       rot, sc, c, si))
     all_coarse.sort(key=lambda x: x[0])
 
-    # ── Step 1.5: Similarity-boosted candidate selection ───────────
-    # Start with top-10 coarse results
-    top_coarse = all_coarse[:10]
-
-    # For the best-scoring shapes, create bonus candidates for their
-    # similar shapes at the *same* promising parameters (rotation,
-    # scale, centre).  "If one fits, its neighbours might fit too."
-    bonus = []
-    seen_keys = set()
-    for score, rot, sc, c, si in top_coarse[:5]:
-        for sim_si in similar_map.get(si, []):
-            key = (sim_si, rot, round(sc, 5),
-                   round(c[0], 4), round(c[1], 4))
-            if key not in seen_keys:
-                seen_keys.add(key)
-                # Give bonus candidates a slight penalty so they don't
-                # dominate true top scorers, but still get evaluated
+    # Step 1.5: Similarity boost
+    top10 = all_coarse[:10]
+    bonus, seen = [], set()
+    for score, rot, sc, c, si in top10[:5]:
+        for sim_si in sim_map.get(si, []):
+            key = (sim_si, rot, round(sc, 5), round(c[0], 4), round(c[1], 4))
+            if key not in seen:
+                seen.add(key)
                 bonus.append((score * 1.1, rot, sc, c, sim_si))
 
-    # Merge, deduplicate, and cap at 18 fine candidates
-    candidates = list(top_coarse) + bonus
-    candidates.sort(key=lambda x: x[0])
-    final = []
-    seen_params = set()
+    candidates = sorted(list(top10) + bonus, key=lambda x: x[0])
+    final, seen_p = [], set()
     for item in candidates:
         key = (item[4], item[1], round(item[2], 5))
-        if key not in seen_params:
-            seen_params.add(key)
+        if key not in seen_p:
+            seen_p.add(key)
             final.append(item)
         if len(final) >= 18:
             break
 
-    # ── Step 2: Fine evaluation for top candidates ─────────────────
-    best_score = 1e9
-    best = None
-
+    # Step 2: Fine evaluation
+    best_score, best = 1e9, None
     for _, rot, sc, c, si in final:
-        pts = shapes[si]["pts"]
+        p = shapes[si]["pts"]
         for dr in [0, -10, 10]:
             for sf in [1.0, 0.9, 1.1]:
-                for do_lat, do_lng in [(0,0), (0.002,0), (-0.002,0),
-                                       (0,0.003), (0,-0.003)]:
-                    r2 = rot + dr
-                    s2 = sc * sf
-                    c2 = [c[0] + do_lat, c[1] + do_lng]
-                    score, route = fine_evaluate(G, pts, r2, s2, c2)
+                for dlat, dlng in [(0, 0), (0.002, 0), (-0.002, 0),
+                                   (0, 0.003), (0, -0.003)]:
+                    r2, s2 = rot + dr, sc * sf
+                    c2 = [c[0] + dlat, c[1] + dlng]
+                    score, route = fit_and_score(G, p, r2, s2, c2)
                     if score < best_score:
                         best_score = score
-                        best = {
-                            "route": route,
-                            "score": round(score, 1),
-                            "rotation": round(r2, 1),
-                            "scale": round(s2, 5),
-                            "center": [round(c2[0], 6), round(c2[1], 6)],
-                            "shape_index": si,
-                            "shape_name": shapes[si].get("name", ""),
-                        }
+                        best = make_result(route, score, r2, s2, c2,
+                                           si, shapes[si].get("name", ""))
 
-    if best is None:
-        return {"error": "Insufficient road density for GPS art here."}
-    return best
+    return best or {"error": "Insufficient road density for GPS art here."}
 
 
-def _optimize_osrm_fallback(pts, center, idx, shape_name):
-    """Simpler OSRM-only optimisation when osmnx unavailable."""
-    rotations = list(range(0, 360, 30))
-    scales = [0.008, 0.012, 0.018]
-    best_score = 1e9
-    best = None
-    for sc in scales:
-        for rot in rotations:
-            wps = shape_to_latlngs(pts, center, sc, rot)
-            dense = densify_waypoints(wps, spacing_m=150)
-            ideal = densify_waypoints(wps, spacing_m=80)
-            route = snap_osrm(dense)
-            if not route:
-                continue
-            score = bidirectional_score(route, ideal)
-            if score < best_score:
-                best_score = score
-                best = {
-                    "route": route,
-                    "score": round(score, 1),
-                    "rotation": rot,
-                    "scale": round(sc, 5),
-                    "center": center,
-                    "shape_index": idx,
-                    "shape_name": shape_name,
-                }
-    if best is None:
-        return {"error": "Could not fit shape via OSRM."}
-    return best
+# ═══════════════════════════════════════════════════════════════════════════
+#  MAIN
+# ═══════════════════════════════════════════════════════════════════════════
 
+HANDLERS = {"fit": mode_fit, "optimize": mode_optimize,
+            "best_shape": mode_best_shape}
 
-# ╔═══════════════════════════════════════════════════════╗
-# ║  MAIN                                                  ║
-# ╚═══════════════════════════════════════════════════════╝
 
 def main():
     raw = sys.stdin.read()
@@ -1060,14 +748,8 @@ def main():
         sys.exit(1)
 
     mode = payload.get("mode", "fit")
-
-    if mode == "optimize":
-        result = mode_optimize(payload)
-    elif mode == "best_shape":
-        result = mode_best_shape(payload)
-    else:
-        result = mode_fit(payload)
-
+    log(f"[engine] mode={mode}")
+    result = HANDLERS.get(mode, mode_fit)(payload)
     print(json.dumps(result))
 
 
