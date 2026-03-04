@@ -23,6 +23,9 @@ I/O: stdin JSON → stdout JSON
 import sys
 import json
 import math
+import os
+import hashlib
+import pickle
 import urllib.request
 import time
 
@@ -46,6 +49,65 @@ try:
 except ImportError:
     HAS_OSMNX = False
     log("[engine] WARNING: osmnx not found — OSRM fallback only")
+
+
+# ---------------------------------------------------------------------------
+# Graph caching (disk + in-memory LRU)
+# ---------------------------------------------------------------------------
+
+CACHE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'cache')
+os.makedirs(CACHE_DIR, exist_ok=True)
+
+_graph_mem_cache = {}  # key → (graph, timestamp)
+_MEM_CACHE_MAX = 8     # keep at most 8 graphs in memory
+
+
+def _graph_cache_key(center, dist):
+    """Deterministic cache key for a (center, dist) pair, rounded to ~200m grid."""
+    lat_r = round(center[0], 3)   # ~111m resolution
+    lng_r = round(center[1], 3)   # ~80m at mid-latitudes
+    raw = f"{lat_r:.3f},{lng_r:.3f},{dist}"
+    return hashlib.md5(raw.encode()).hexdigest()[:12]
+
+
+def _cache_get(key):
+    """Try memory cache, then disk cache. Returns graph or None."""
+    # Memory
+    if key in _graph_mem_cache:
+        log(f"[cache] Memory hit: {key}")
+        return _graph_mem_cache[key][0]
+    # Disk
+    path = os.path.join(CACHE_DIR, f"{key}.pkl")
+    if os.path.exists(path):
+        try:
+            with open(path, 'rb') as f:
+                G = pickle.load(f)
+            _mem_store(key, G)
+            log(f"[cache] Disk hit: {key}")
+            return G
+        except Exception:
+            pass
+    return None
+
+
+def _cache_put(key, G):
+    """Store graph in memory + disk."""
+    _mem_store(key, G)
+    path = os.path.join(CACHE_DIR, f"{key}.pkl")
+    try:
+        with open(path, 'wb') as f:
+            pickle.dump(G, f, protocol=pickle.HIGHEST_PROTOCOL)
+        log(f"[cache] Saved to disk: {key}")
+    except Exception as e:
+        log(f"[cache] Disk write failed: {e}")
+
+
+def _mem_store(key, G):
+    """Store in memory LRU, evict oldest if full."""
+    _graph_mem_cache[key] = (G, time.time())
+    if len(_graph_mem_cache) > _MEM_CACHE_MAX:
+        oldest = min(_graph_mem_cache, key=lambda k: _graph_mem_cache[k][1])
+        del _graph_mem_cache[oldest]
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -367,13 +429,24 @@ def route_osrm(waypoints):
 
 
 def fetch_graph(center, dist=2500):
-    """Fetch osmnx walk-network graph, or None."""
+    """Fetch osmnx walk-network graph with caching, or None."""
     if not HAS_OSMNX:
         return None
+    key = _graph_cache_key(center, dist)
+    cached = _cache_get(key)
+    if cached is not None:
+        return cached
     try:
+        t0 = time.time()
         G = ox.graph_from_point((center[0], center[1]), dist=dist,
                                 network_type='walk')
-        return G if G.number_of_edges() >= 10 else None
+        if G.number_of_edges() < 10:
+            return None
+        elapsed = time.time() - t0
+        log(f"[fetch_graph] Downloaded in {elapsed:.1f}s — "
+            f"{G.number_of_nodes()} nodes, {G.number_of_edges()} edges")
+        _cache_put(key, G)
+        return G
     except Exception as e:
         log(f"[fetch_graph] Error: {e}")
         return None
