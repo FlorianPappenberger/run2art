@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>GPS Art — Street-Fitted Shape Generator</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; color: #eee; }
+
+    /* ── Layout ─────────────────────────────────────── */
+    #app { display: flex; height: 100vh; }
+
+    /* ── Sidebar ────────────────────────────────────── */
+    #sidebar {
+      width: 320px; min-width: 320px; background: #16213e;
+      display: flex; flex-direction: column; overflow-y: auto;
+      border-right: 1px solid #0f3460; z-index: 500;
+    }
+    #sidebar h1 { font-size: 1.25rem; padding: 16px; background: #0f3460; text-align: center; letter-spacing: 1px; }
+    .section { padding: 12px 16px; border-bottom: 1px solid #0f3460; }
+    .section-title { font-size: .75rem; text-transform: uppercase; letter-spacing: 1.5px; color: #a0a0cc; margin-bottom: 8px; }
+
+    /* ── Location controls ──────────────────────────── */
+    #btn-locate {
+      width: 100%; padding: 10px; border: none; border-radius: 6px;
+      background: #e94560; color: #fff; font-weight: 600; cursor: pointer;
+      transition: background .2s;
+    }
+    #btn-locate:hover { background: #c73751; }
+    #btn-locate:disabled { opacity: .5; cursor: wait; }
+
+    #search-wrap { position: relative; margin-top: 10px; }
+    #search-input {
+      width: 100%; padding: 9px 12px; border: 1px solid #0f3460;
+      border-radius: 6px; background: #1a1a2e; color: #eee; font-size: .9rem;
+    }
+    #search-input::placeholder { color: #667; }
+    #search-results {
+      position: absolute; top: 100%; left: 0; right: 0;
+      background: #16213e; border: 1px solid #0f3460; border-top: none;
+      border-radius: 0 0 6px 6px; max-height: 220px; overflow-y: auto;
+      display: none; z-index: 600;
+    }
+    .search-item {
+      padding: 8px 12px; cursor: pointer; font-size: .85rem;
+      border-bottom: 1px solid #0f3460;
+    }
+    .search-item:hover { background: #0f3460; }
+
+    /* ── Shape grid ─────────────────────────────────── */
+    #shape-grid {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 8px; max-height: 420px; overflow-y: auto;
+    }
+    .shape-card {
+      background: #1a1a2e; border: 2px solid transparent; border-radius: 8px;
+      padding: 6px; cursor: pointer; text-align: center; transition: .15s;
+    }
+    .shape-card:hover { border-color: #e94560; }
+    .shape-card.active { border-color: #e94560; background: #0f3460; }
+    .shape-card canvas { width: 100%; height: 80px; }
+    .shape-card .label { font-size: .7rem; margin-top: 2px; }
+
+    /* ── Fit button ─────────────────────────────────── */
+    #btn-fit {
+      width: 100%; padding: 12px; border: none; border-radius: 6px;
+      background: #00b894; color: #fff; font-weight: 700; font-size: 1rem;
+      cursor: pointer; transition: background .2s; margin-bottom: 6px;
+    }
+    #btn-fit:hover { background: #00a381; }
+    #btn-fit:disabled { opacity: .5; cursor: wait; }
+
+    #btn-optimize {
+      width: 100%; padding: 10px; border: none; border-radius: 6px;
+      background: #6c5ce7; color: #fff; font-weight: 600; font-size: .9rem;
+      cursor: pointer; transition: background .2s; margin-bottom: 6px;
+    }
+    #btn-optimize:hover { background: #5a4bd1; }
+    #btn-optimize:disabled { opacity: .5; cursor: wait; }
+
+    #btn-best-shape {
+      width: 100%; padding: 10px; border: none; border-radius: 6px;
+      background: #fdcb6e; color: #1a1a2e; font-weight: 600; font-size: .9rem;
+      cursor: pointer; transition: background .2s;
+    }
+    #btn-best-shape:hover { background: #f0b340; }
+    #btn-best-shape:disabled { opacity: .5; cursor: wait; }
+
+    .btn-hint {
+      font-size: .65rem; color: #667; margin-top: 2px; margin-bottom: 6px;
+      line-height: 1.2;
+    }
+
+    /* ── Export ──────────────────────────────────────── */
+    #btn-export {
+      width: 100%; padding: 10px; border: 1px solid #0f3460; border-radius: 6px;
+      background: transparent; color: #a0a0cc; cursor: pointer; transition: .2s;
+    }
+    #btn-export:hover { background: #0f3460; color: #eee; }
+    #btn-export:disabled { opacity: .3; cursor: default; }
+
+    /* ── Map area ───────────────────────────────────── */
+    #map-wrap { flex: 1; position: relative; }
+    #map { height: 100%; width: 100%; }
+
+    /* ── Toast ──────────────────────────────────────── */
+    #toast {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+      padding: 10px 24px; border-radius: 8px; font-size: .9rem;
+      background: #e94560; color: #fff; z-index: 9999;
+      opacity: 0; pointer-events: none; transition: opacity .3s;
+    }
+    #toast.show { opacity: 1; pointer-events: auto; }
+
+    /* ── Spinner overlay ────────────────────────────── */
+    #spinner-overlay {
+      position: absolute; inset: 0; z-index: 800;
+      display: none; align-items: center; justify-content: center;
+      background: rgba(0,0,0,.45);
+    }
+    #spinner-overlay.active { display: flex; }
+    .spinner {
+      width: 56px; height: 56px; border: 5px solid #fff3;
+      border-top-color: #e94560; border-radius: 50%;
+      animation: spin .8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<div id="app">
+  <!-- SIDEBAR -->
+  <div id="sidebar">
+    <h1>&#x1F5FA;&#xFE0F; GPS Art</h1>
+
+    <!-- Location -->
+    <div class="section">
+      <div class="section-title">Location</div>
+      <button id="btn-locate">&#x1F4CD; Use My Location</button>
+      <div id="search-wrap">
+        <input id="search-input" type="text" placeholder="Search town or city..." autocomplete="off" />
+        <div id="search-results"></div>
+      </div>
+    </div>
+
+    <!-- Shapes -->
+    <div class="section" style="flex:1">
+      <div class="section-title">Choose a Shape</div>
+      <div id="shape-grid"></div>
+    </div>
+
+    <!-- Actions -->
+    <div class="section">
+      <button id="btn-fit" disabled>&#x26A1; Quick Fit</button>
+      <div class="btn-hint">Fit selected shape to streets (fast, default params)</div>
+      <button id="btn-optimize" disabled>&#x1F50D; Auto-Optimize Shape</button>
+      <div class="btn-hint">Two-step coarse→fine: finds best rotation, scale &amp; position</div>
+      <button id="btn-best-shape">&#x1F3C6; Find Best Shape</button>
+      <div class="btn-hint">Tries all 20 shapes × orientations to find the best match here</div>
+    </div>
+    <div class="section">
+      <button id="btn-export" disabled>&#x1F4BE; Export as GPX</button>
+    </div>
+  </div>
+
+  <!-- MAP -->
+  <div id="map-wrap">
+    <div id="map"></div>
+    <div id="spinner-overlay"><div class="spinner"></div></div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+// ═══════════════════════════════════════════════════════
+// SHAPE TEMPLATES v4 — optimised for GPS art
+// ═══════════════════════════════════════════════════════
+// Design: 8-20 vertices, closed paths, smooth curves (>30° turns),
+// ~1:1 aspect ratio, recognisable at road-network scale (~1 km).
+// Adaptive densification adds intermediate points automatically.
+// See docs/SHAPES.md for design guide.
+const SHAPES = [
+  // ── Popular / Classic ────────────────────────────────
+  { name:'Heart',          pts:[[.50,.14],[.66,-.04],[.90,-.06],[1.0,.18],[.94,.46],[.76,.70],[.50,1.0],[.24,.70],[.06,.46],[0,.18],[.10,-.06],[.34,-.04],[.50,.14]] },
+  { name:'Star',           pts:[[.50,.00],[.62,.34],[1.0,.38],[.72,.60],[.80,1.0],[.50,.76],[.20,1.0],[.28,.60],[0,.38],[.38,.34],[.50,.00]] },
+  { name:'Smiley',         pts:[[.50,.00],[.78,.08],[.96,.30],[1.0,.55],[.94,.78],[.74,.66],[.60,.76],[.50,.80],[.40,.76],[.26,.66],[.06,.78],[.00,.55],[.04,.30],[.22,.08],[.50,.00]] },
+  { name:'Peace Sign',     pts:[[.50,.02],[.50,.50],[.22,.90],[.06,.72],[.02,.50],[.06,.28],[.22,.10],[.50,.02],[.78,.10],[.94,.28],[.98,.50],[.94,.72],[.78,.90],[.50,.50],[.50,.98],[.50,.02]] },
+  // ── Animals ──────────────────────────────────────────
+  { name:'Cat',            pts:[[.18,.00],[.10,.24],[.04,.42],[.02,.60],[.14,.78],[.34,.92],[.50,.98],[.66,.92],[.86,.78],[.98,.60],[.96,.42],[.90,.24],[.82,.00],[.72,.20],[.50,.14],[.28,.20],[.18,.00]] },
+  { name:'Bone',           pts:[[.14,.28],[.06,.22],[.00,.30],[.00,.50],[.00,.70],[.06,.78],[.14,.72],[.30,.58],[.70,.58],[.86,.72],[.94,.78],[1.0,.70],[1.0,.50],[1.0,.30],[.94,.22],[.86,.28],[.70,.42],[.30,.42],[.14,.28]] },
+  { name:'Fish',           pts:[[.00,.22],[.16,.44],[.00,.78],[.22,.64],[.44,.74],[.66,.74],[.84,.62],[1.0,.50],[.84,.38],[.66,.26],[.44,.26],[.22,.36],[.00,.22]] },
+  { name:'Diamond',        pts:[[.50,.00],[.82,.12],[1.0,.28],[.84,.28],[.62,.58],[.50,1.0],[.38,.58],[.16,.28],[.00,.28],[.18,.12],[.50,.00]] },
+  { name:'Butterfly',      pts:[[.50,.50],[.70,.15],[1.0,.00],[.95,.45],[.75,.50],[.95,.55],[1.0,1.0],[.70,.85],[.50,.50],[.30,.85],[0,1.0],[.05,.55],[.25,.50],[.05,.45],[0,.00],[.30,.15],[.50,.50]] },
+  // ── Nature / Seasonal ────────────────────────────────
+  { name:'Flower',         pts:[[.50,.08],[.62,.24],[.82,.12],[.76,.38],[.94,.50],[.76,.62],[.82,.88],[.62,.76],[.50,.92],[.38,.76],[.18,.88],[.24,.62],[.06,.50],[.24,.38],[.18,.12],[.38,.24],[.50,.08]] },
+  { name:'Christmas Tree', pts:[[.50,.00],[.70,.30],[.60,.30],[.80,.55],[.65,.55],[.85,.85],[.60,.85],[.60,1.0],[.40,1.0],[.40,.85],[.15,.85],[.35,.55],[.20,.55],[.40,.30],[.30,.30],[.50,.00]] },
+  { name:'Crescent Moon',  pts:[[.82,.02],[.56,.08],[.32,.22],[.14,.42],[.10,.65],[.20,.84],[.42,.96],[.72,.98],[.56,.82],[.38,.62],[.32,.42],[.42,.25],[.62,.12],[.82,.02]] },
+  // ── Travel / Transport ─────────────────────────────────
+  { name:'Airplane',       pts:[[.50,.00],[.54,.16],[.94,.38],[.58,.42],[.56,.62],[.72,.80],[.54,.76],[.50,.88],[.46,.76],[.28,.80],[.44,.62],[.42,.42],[.06,.38],[.46,.16],[.50,.00]] },
+  { name:'Sailboat',       pts:[[.42,.00],[.84,.54],[.92,.54],[.96,.66],[.86,.82],[.50,.90],[.14,.82],[.04,.66],[.08,.54],[.42,.54],[.42,.00]] },
+  // ── Objects / Symbols ────────────────────────────────
+  { name:'House',          pts:[[.50,.00],[.72,.18],[.72,.06],[.82,.06],[.82,.26],[.96,.36],[.96,1.0],[.04,1.0],[.04,.36],[.50,.00]] },
+  { name:'Crown',          pts:[[.05,.92],[.05,.38],[.22,.58],[.36,.14],[.50,.44],[.64,.14],[.78,.58],[.95,.38],[.95,.92],[.05,.92]] },
+  { name:'Thumbs Up',      pts:[[.28,.00],[.42,.00],[.44,.14],[.46,.30],[.46,.42],[.70,.42],[.88,.46],[.96,.56],[.96,.70],[.86,.82],[.66,.90],[.46,.92],[.28,.86],[.18,.74],[.14,.56],[.14,.42],[.16,.26],[.20,.12],[.28,.00]] },
+  { name:'Arrow',          pts:[[.50,.00],[1.0,.40],[.68,.40],[.68,1.0],[.32,1.0],[.32,.40],[0,.40],[.50,.00]] },
+  { name:'Lightning',      pts:[[.35,.00],[.72,.38],[.52,.38],[.80,1.0],[.28,.58],[.48,.58],[.20,.00],[.35,.00]] },
+  { name:'Music Note',     pts:[[.58,.00],[.80,.08],[.86,.24],[.68,.32],[.58,.24],[.58,.60],[.46,.72],[.28,.82],[.18,.94],[.32,1.0],[.48,.92],[.58,.78],[.58,.00]] },
+];
+
+// ═══════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════
+let map, blueMarker, ghostLayer, fittedLayer;
+let selectedShapeIdx = null;
+let currentCenter = [51.505, -0.09];   // London default
+let fittedCoords = null;
+
+// ═══════════════════════════════════════════════════════
+// MAP INIT
+// ═══════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+  map = L.map('map', { zoomControl: true }).setView(currentCenter, 15);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors',
+    maxZoom: 19,
+  }).addTo(map);
+
+  blueMarker = L.circleMarker(currentCenter, {
+    radius: 7, color: '#3388ff', fillColor: '#3388ff', fillOpacity: .8, weight: 2,
+  }).addTo(map);
+
+  buildShapeGrid();
+  wireEvents();
+});
+
+// ═══════════════════════════════════════════════════════
+// SHAPE GRID
+// ═══════════════════════════════════════════════════════
+function buildShapeGrid() {
+  const grid = document.getElementById('shape-grid');
+  SHAPES.forEach((s, i) => {
+    const card = document.createElement('div');
+    card.className = 'shape-card';
+    card.dataset.idx = i;
+    const cvs = document.createElement('canvas');
+    cvs.width = 120; cvs.height = 80;
+    drawShapeThumb(cvs, s.pts);
+    const lbl = document.createElement('div');
+    lbl.className = 'label'; lbl.textContent = s.name;
+    card.append(cvs, lbl);
+    card.addEventListener('click', () => selectShape(i));
+    grid.appendChild(card);
+  });
+}
+
+function drawShapeThumb(cvs, pts) {
+  const ctx = cvs.getContext('2d');
+  const pad = 8, w = cvs.width - pad * 2, h = cvs.height - pad * 2;
+  ctx.strokeStyle = '#e94560'; ctx.lineWidth = 2; ctx.lineJoin = 'round';
+  ctx.beginPath();
+  pts.forEach(([x, y], i) => {
+    const px = pad + x * w, py = pad + y * h;
+    i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+  });
+  ctx.stroke();
+}
+
+function selectShape(idx) {
+  selectedShapeIdx = idx;
+  fittedCoords = null;
+  clearFitted();
+  document.querySelectorAll('.shape-card').forEach((c, i) => c.classList.toggle('active', i === idx));
+  document.getElementById('btn-fit').disabled = false;
+  document.getElementById('btn-optimize').disabled = false;
+  document.getElementById('btn-export').disabled = true;
+  drawGhost();
+}
+
+// ═══════════════════════════════════════════════════════
+// GHOST & FITTED LAYERS
+// ═══════════════════════════════════════════════════════
+function shapeToLatLngs(pts, center, sizeDeg) {
+  if (sizeDeg === undefined) sizeDeg = 0.012;
+  var cx = 0.5, cy = 0.5;
+  return pts.map(function(p) {
+    return [
+      center[0] - (p[1] - cy) * sizeDeg,
+      center[1] + (p[0] - cx) * sizeDeg * 1.4
+    ];
+  });
+}
+
+function drawGhost() {
+  if (ghostLayer) { map.removeLayer(ghostLayer); ghostLayer = null; }
+  if (selectedShapeIdx === null) return;
+  var pts = SHAPES[selectedShapeIdx].pts;
+  var ll = shapeToLatLngs(pts, currentCenter);
+  ghostLayer = L.polyline(ll, { color: '#e94560', weight: 2, dashArray: '6 6', opacity: .6 }).addTo(map);
+}
+
+function clearFitted() {
+  if (fittedLayer) { map.removeLayer(fittedLayer); fittedLayer = null; }
+}
+
+// ═══════════════════════════════════════════════════════
+// LOCATION: GPS
+// ═══════════════════════════════════════════════════════
+function wireEvents() {
+  document.getElementById('btn-locate').addEventListener('click', handleLocate);
+  document.getElementById('search-input').addEventListener('input', debounce(handleSearch, 600));
+  document.getElementById('btn-fit').addEventListener('click', function() { handleFit('fit'); });
+  document.getElementById('btn-optimize').addEventListener('click', function() { handleFit('optimize'); });
+  document.getElementById('btn-best-shape').addEventListener('click', function() { handleFit('best_shape'); });
+  document.getElementById('btn-export').addEventListener('click', handleExport);
+}
+
+function handleLocate() {
+  var btn = document.getElementById('btn-locate');
+  if (!navigator.geolocation) { toast('Geolocation not supported'); return; }
+  btn.disabled = true; btn.textContent = 'Locating...';
+  navigator.geolocation.getCurrentPosition(
+    function(pos) {
+      setCenter([pos.coords.latitude, pos.coords.longitude]);
+      btn.disabled = false; btn.textContent = 'Use My Location';
+      toast('Location set!', 'green');
+    },
+    function(err) {
+      btn.disabled = false; btn.textContent = 'Use My Location';
+      if (err.code === 1) toast('Location permission denied. Please allow location access in your browser.');
+      else toast('Could not get location. Try searching for a town instead.');
+    },
+    { enableHighAccuracy: true, timeout: 10000 }
+  );
+}
+
+function setCenter(latlng) {
+  currentCenter = latlng;
+  map.flyTo(latlng, 15, { duration: 1.2 });
+  blueMarker.setLatLng(latlng);
+  fittedCoords = null;
+  clearFitted();
+  document.getElementById('btn-export').disabled = true;
+  drawGhost();
+}
+
+// ═══════════════════════════════════════════════════════
+// LOCATION: NOMINATIM SEARCH
+// ═══════════════════════════════════════════════════════
+async function handleSearch() {
+  var q = document.getElementById('search-input').value.trim();
+  var box = document.getElementById('search-results');
+  if (q.length < 2) { box.style.display = 'none'; return; }
+  try {
+    var url = 'https://nominatim.openstreetmap.org/search?format=json&limit=6&q=' + encodeURIComponent(q);
+    var res = await fetch(url, { headers: { 'Accept-Language': 'en' } });
+    var data = await res.json();
+    box.innerHTML = '';
+    if (!data.length) { box.style.display = 'none'; return; }
+    data.forEach(function(d) {
+      var el = document.createElement('div');
+      el.className = 'search-item';
+      el.textContent = d.display_name;
+      el.addEventListener('click', function() {
+        document.getElementById('search-input').value = d.display_name.split(',')[0];
+        box.style.display = 'none';
+        setCenter([parseFloat(d.lat), parseFloat(d.lon)]);
+      });
+      box.appendChild(el);
+    });
+    box.style.display = 'block';
+  } catch(e) { box.style.display = 'none'; }
+}
+
+// close search results when clicking elsewhere
+document.addEventListener('click', function(e) {
+  if (!document.getElementById('search-wrap').contains(e.target)) {
+    document.getElementById('search-results').style.display = 'none';
+  }
+});
+
+// ═══════════════════════════════════════════════════════
+// FIT SHAPE TO STREETS  (calls backend -> Python engine)
+// ═══════════════════════════════════════════════════════
+async function handleFit(mode) {
+  mode = mode || 'fit';
+
+  // best_shape doesn't need a selected shape; others do
+  if (mode !== 'best_shape' && selectedShapeIdx === null) return;
+
+  var btnFit = document.getElementById('btn-fit');
+  var btnOpt = document.getElementById('btn-optimize');
+  var btnBest = document.getElementById('btn-best-shape');
+
+  var labels = { fit:'Quick Fit', optimize:'Auto-Optimize Shape', best_shape:'Find Best Shape' };
+  var activeBtn = mode === 'best_shape' ? btnBest : mode === 'optimize' ? btnOpt : btnFit;
+  var origLabel = activeBtn.textContent;
+
+  // Disable all action buttons during operation
+  btnFit.disabled = btnOpt.disabled = btnBest.disabled = true;
+  activeBtn.textContent = mode === 'best_shape' ? 'Searching all shapes...'
+                        : mode === 'optimize'   ? 'Optimizing (2-step)...'
+                        : 'Fitting...';
+  showSpinner(true);
+  fittedCoords = null; clearFitted();
+
+  // Build payload with all shapes for the engine
+  var shapesPayload = SHAPES.map(function(s) { return { name: s.name, pts: s.pts }; });
+
+  var body = {
+    mode: mode,
+    shapes: shapesPayload,
+    shape_index: selectedShapeIdx !== null ? selectedShapeIdx : 0,
+    center_point: currentCenter,
+    zoom_level: map.getZoom(),
+    bbox: map.getBounds().toBBoxString(),
+  };
+
+  // For quick fit, include explicit rotation/scale
+  if (mode === 'fit') {
+    body.rotation_deg = 0;
+    body.scale = 0.012;
+  }
+
+  try {
+    var resp = await fetch('/api/match', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    var data = await resp.json();
+    if (data.error) {
+      toast(data.error);
+    } else if (data.route && data.route.length) {
+      fittedCoords = data.route;
+      fittedLayer = L.polyline(fittedCoords, { color: '#00b894', weight: 4 }).addTo(map);
+
+      // If the engine found a better shape or shifted centre, update UI
+      if (typeof data.shape_index === 'number' && data.shape_index !== selectedShapeIdx) {
+        selectShape(data.shape_index);
+      }
+      if (data.center) {
+        // Pan map to the optimised centre
+        map.flyTo(data.center, map.getZoom(), { duration: 0.8 });
+      }
+
+      // Redraw ghost with optimised params if available
+      if (data.rotation || data.scale || data.center) {
+        drawGhostWithParams(
+          typeof data.shape_index === 'number' ? data.shape_index : selectedShapeIdx,
+          data.center || currentCenter,
+          data.scale || 0.012,
+          data.rotation || 0
+        );
+      }
+
+      document.getElementById('btn-export').disabled = false;
+      var msg = mode === 'best_shape'
+        ? 'Best shape: ' + (data.shape_name || 'unknown') + ' (score ' + data.score + ' m)'
+        : mode === 'optimize'
+        ? 'Optimized! rot=' + Math.round(data.rotation) + '° scale=' + (data.scale*1000).toFixed(1) + ' (score ' + data.score + ' m)'
+        : 'Shape fitted to streets!';
+      toast(msg, 'green');
+    } else {
+      toast('No matching route found. Try a denser area.');
+    }
+  } catch (err) {
+    toast('Server error - is the backend running?');
+    console.error(err);
+  }
+
+  // Restore buttons
+  btnFit.disabled = false;
+  btnOpt.disabled = (selectedShapeIdx === null);
+  btnBest.disabled = false;
+  activeBtn.textContent = origLabel;
+  btnFit.textContent = '\u26A1 Quick Fit';
+  btnOpt.textContent = '\uD83D\uDD0D Auto-Optimize Shape';
+  btnBest.textContent = '\uD83C\uDFC6 Find Best Shape';
+  showSpinner(false);
+}
+
+function drawGhostWithParams(shapeIdx, center, scale, rotation) {
+  if (ghostLayer) { map.removeLayer(ghostLayer); ghostLayer = null; }
+  if (shapeIdx === null || shapeIdx < 0 || shapeIdx >= SHAPES.length) return;
+  var pts = SHAPES[shapeIdx].pts;
+  // Use the engine's shape_to_latlngs equivalent with rotation
+  var rotated = rotation ? rotateNorm(pts, rotation) : pts;
+  var cx = 0.5, cy = 0.5;
+  var ll = rotated.map(function(p) {
+    return [center[0] - (p[1] - cy) * scale,
+            center[1] + (p[0] - cx) * scale * 1.4];
+  });
+  ghostLayer = L.polyline(ll, { color: '#e94560', weight: 2, dashArray: '6 6', opacity: .6 }).addTo(map);
+}
+
+function rotateNorm(pts, angleDeg) {
+  var cx = 0.5, cy = 0.5;
+  var rad = angleDeg * Math.PI / 180;
+  var cos = Math.cos(rad), sin = Math.sin(rad);
+  return pts.map(function(p) {
+    var dx = p[0] - cx, dy = p[1] - cy;
+    return [cx + dx * cos - dy * sin, cy + dx * sin + dy * cos];
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+// GPX EXPORT
+// ═══════════════════════════════════════════════════════
+function handleExport() {
+  if (!fittedCoords || !fittedCoords.length) return;
+  var name = SHAPES[selectedShapeIdx] ? SHAPES[selectedShapeIdx].name : 'GPS-Art';
+  var gpx = '<?xml version="1.0" encoding="UTF-8"?>\n' +
+    '<gpx version="1.1" creator="GPS Art App"\n' +
+    ' xmlns="http://www.topografix.com/GPX/1/1">\n' +
+    ' <trk><name>' + name + '</name><trkseg>\n';
+  fittedCoords.forEach(function(c) {
+    gpx += '  <trkpt lat="' + c[0] + '" lon="' + c[1] + '"></trkpt>\n';
+  });
+  gpx += ' </trkseg></trk>\n</gpx>';
+  var blob = new Blob([gpx], { type: 'application/gpx+xml' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name.replace(/\s+/g, '_') + '_gps_art.gpx';
+  a.click();
+}
+
+// ═══════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════
+function debounce(fn, ms) {
+  var t;
+  return function() {
+    var args = arguments, self = this;
+    clearTimeout(t);
+    t = setTimeout(function() { fn.apply(self, args); }, ms);
+  };
+}
+
+function toast(msg, bg) {
+  var el = document.getElementById('toast');
+  el.style.background = bg === 'green' ? '#00b894' : '#e94560';
+  el.textContent = msg; el.classList.add('show');
+  setTimeout(function() { el.classList.remove('show'); }, 3500);
+}
+
+function showSpinner(on) {
+  document.getElementById('spinner-overlay').classList.toggle('active', on);
+}
+</script>
+</body>
+</html>
