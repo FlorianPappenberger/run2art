@@ -1,10 +1,10 @@
-# GPS Art — Street-Fitted Shape Generator
+# Run2Art — GPS Art Running Route Generator
 
-> Draw recognisable shapes on real road networks, then export as GPX for running, cycling, or walking.
+> Create GPS art running routes from geometric shapes, fitted to real streets. Export as GPX for Strava, Garmin, Komoot.
 
 ## Overview
 
-GPS Art transforms geometric shape templates into runnable routes that follow actual streets, paths, and footpaths. The engine intelligently snaps shape outlines onto the road network using advanced shape-aware routing algorithms, producing routes that are both **recognisable** (they look like the intended shape) and **navigable** (they follow real roads).
+Run2Art transforms geometric shape templates into running routes that follow actual streets, paths, and footpaths. The engine intelligently fits shape outlines onto the road network using advanced shape-aware routing algorithms, producing routes that are both **recognisable** (they look like the intended shape) and **runnable** (they follow real roads).
 
 ### Key Features
 

@@ -101,6 +101,34 @@
     #btn-export:hover { background: #0f3460; color: #eee; }
     #btn-export:disabled { opacity: .3; cursor: default; }
 
+    /* ── Benchmark ───────────────────────────────────── */
+    #btn-benchmark {
+      width: 100%; padding: 10px; border: 1px solid #0f3460; border-radius: 6px;
+      background: transparent; color: #fdcb6e; cursor: pointer; transition: .2s;
+      font-size: .85rem;
+    }
+    #btn-benchmark:hover { background: #0f3460; }
+    #benchmark-panel {
+      display: none; max-height: 320px; overflow-y: auto;
+      margin-top: 8px; font-size: .75rem; line-height: 1.5;
+    }
+    #benchmark-panel.visible { display: block; }
+    .bm-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 4px 0; border-bottom: 1px solid #0f346033; cursor: pointer;
+    }
+    .bm-row:hover { background: #0f3460; border-radius: 4px; padding: 4px 6px; margin: 0 -6px; }
+    .bm-row .bm-name { flex: 1; }
+    .bm-row .bm-score { color: #00b894; min-width: 55px; text-align: right; }
+    .bm-row .bm-time { color: #a0a0cc; min-width: 45px; text-align: right; }
+    .bm-mode-tab {
+      display: inline-block; padding: 4px 10px; border-radius: 4px 4px 0 0;
+      cursor: pointer; font-size: .7rem; text-transform: uppercase;
+      background: #1a1a2e; color: #667; border: 1px solid #0f3460; border-bottom: none;
+    }
+    .bm-mode-tab.active { background: #0f3460; color: #fdcb6e; }
+    .bm-summary { color: #a0a0cc; margin: 6px 0; font-size: .7rem; }
+
     /* ── Map area ───────────────────────────────────── */
     #map-wrap { flex: 1; position: relative; }
     #map { height: 100%; width: 100%; }
@@ -163,6 +191,14 @@
     </div>
     <div class="section">
       <button id="btn-export" disabled>&#x1F4BE; Export as GPX</button>
+    </div>
+    <div class="section">
+      <button id="btn-benchmark">&#x1F4CA; Load Benchmark Results</button>
+      <div id="benchmark-panel">
+        <div id="bm-tabs"></div>
+        <div id="bm-summary"></div>
+        <div id="bm-list"></div>
+      </div>
     </div>
   </div>
 
@@ -318,6 +354,7 @@ function wireEvents() {
   document.getElementById('btn-optimize').addEventListener('click', function() { handleFit('optimize'); });
   document.getElementById('btn-best-shape').addEventListener('click', function() { handleFit('best_shape'); });
   document.getElementById('btn-export').addEventListener('click', handleExport);
+  document.getElementById('btn-benchmark').addEventListener('click', loadBenchmark);
 }
 
 function handleLocate() {
@@ -543,6 +580,121 @@ function toast(msg, bg) {
 
 function showSpinner(on) {
   document.getElementById('spinner-overlay').classList.toggle('active', on);
+}
+
+// ═══════════════════════════════════════════════════════
+// BENCHMARK RESULTS
+// ═══════════════════════════════════════════════════════
+var benchmarkData = null;
+var bmActiveMode = 'fit';
+
+async function loadBenchmark() {
+  var panel = document.getElementById('benchmark-panel');
+  if (panel.classList.contains('visible') && benchmarkData) {
+    panel.classList.remove('visible');
+    return;
+  }
+  try {
+    var resp = await fetch('/benchmark_results.json?t=' + Date.now());
+    if (!resp.ok) { toast('No benchmark results found. Run benchmark.py first.'); return; }
+    benchmarkData = await resp.json();
+    panel.classList.add('visible');
+    renderBmTabs();
+    renderBmMode('fit');
+    // Move map to benchmark location
+    if (benchmarkData.center) {
+      setCenter(benchmarkData.center);
+    }
+    toast('Loaded benchmark: ' + benchmarkData.location + ' (' + benchmarkData.generated_at + ')', 'green');
+  } catch(e) {
+    toast('Failed to load benchmark results.');
+  }
+}
+
+function renderBmTabs() {
+  var tabs = document.getElementById('bm-tabs');
+  tabs.innerHTML = '';
+  ['fit', 'optimize', 'best_shape'].forEach(function(m) {
+    var label = m === 'fit' ? 'Quick Fit' : m === 'optimize' ? 'Optimize' : 'Best Shape';
+    var tab = document.createElement('span');
+    tab.className = 'bm-mode-tab' + (m === bmActiveMode ? ' active' : '');
+    tab.textContent = label;
+    tab.addEventListener('click', function() { renderBmMode(m); });
+    tabs.appendChild(tab);
+  });
+}
+
+function renderBmMode(mode) {
+  bmActiveMode = mode;
+  renderBmTabs();
+  var summary = document.getElementById('bm-summary');
+  var list = document.getElementById('bm-list');
+  var s = benchmarkData.summary;
+
+  if (mode === 'best_shape') {
+    var bs = benchmarkData.best_shape;
+    summary.innerHTML = '<div class="bm-summary">Best: <b>' + (bs.shape_name || '?') + '</b> — score ' + (bs.score || '?') + 'm — ' + (bs.time_seconds || '?') + 's</div>';
+    list.innerHTML = '';
+    if (bs.route) {
+      var row = document.createElement('div');
+      row.className = 'bm-row';
+      row.innerHTML = '<span class="bm-name">' + (bs.shape_name || 'Best') + '</span>' +
+        '<span class="bm-score">' + bs.score + 'm</span>' +
+        '<span class="bm-time">' + bs.time_seconds + 's</span>';
+      row.addEventListener('click', function() { displayBmResult(bs); });
+      list.appendChild(row);
+    }
+    return;
+  }
+
+  var items = benchmarkData[mode] || [];
+  var prefix = mode === 'fit' ? 'fit' : 'opt';
+  summary.innerHTML = '<div class="bm-summary">' +
+    items.length + ' shapes — avg score: ' + (s[prefix + '_avg_score'] || '?') + 'm — ' +
+    'avg time: ' + (s[prefix + '_avg_time'] || '?') + 's — ' +
+    'total: ' + (s[prefix + '_total_time'] || '?') + 's</div>';
+
+  list.innerHTML = '';
+  items.forEach(function(r) {
+    if (!r.route) return;
+    var row = document.createElement('div');
+    row.className = 'bm-row';
+    row.innerHTML = '<span class="bm-name">' + (r.shape_name || SHAPES[r.global_shape_index]?.name || '?') + '</span>' +
+      '<span class="bm-score">' + (r.score || '?') + 'm</span>' +
+      '<span class="bm-time">' + (r.time_seconds || '?') + 's</span>';
+    row.addEventListener('click', function() {
+      var idx = typeof r.global_shape_index === 'number' ? r.global_shape_index : r.shape_index;
+      displayBmResult(r, idx);
+    });
+    list.appendChild(row);
+  });
+}
+
+function displayBmResult(r, shapeIdx) {
+  // Display precomputed route on map
+  fittedCoords = r.route;
+  clearFitted();
+  fittedLayer = L.polyline(fittedCoords, { color: '#00b894', weight: 4 }).addTo(map);
+
+  var idx = typeof shapeIdx === 'number' ? shapeIdx :
+            typeof r.shape_index === 'number' ? r.shape_index : selectedShapeIdx;
+  if (typeof idx === 'number' && idx >= 0 && idx < SHAPES.length) {
+    selectShape(idx);
+  }
+  if (r.center) {
+    map.flyTo(r.center, 15, { duration: 0.8 });
+  }
+  if (r.rotation || r.scale || r.center) {
+    drawGhostWithParams(idx, r.center || currentCenter, r.scale || 0.012, r.rotation || 0);
+  }
+  // Fit map to route bounds
+  if (fittedCoords.length > 1) {
+    map.fitBounds(L.latLngBounds(fittedCoords), { padding: [30, 30] });
+  }
+  document.getElementById('btn-export').disabled = false;
+  var name = r.shape_name || (idx != null && SHAPES[idx] ? SHAPES[idx].name : 'Shape');
+  toast(name + ': score=' + r.score + 'm  rot=' + Math.round(r.rotation || 0) + '°  ' +
+        (r.route_length_m ? r.route_length_m + 'm route  ' : '') + r.time_seconds + 's', 'green');
 }
 </script>
 </body>

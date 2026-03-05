@@ -1,8 +1,8 @@
 {
-  "name": "gps-art-webapp",
+  "name": "run2art",
   "version": "0.3.0",
   "private": true,
-  "description": "GPS Art — transform geometric shapes into runnable street routes. Features 20 optimised shape templates, shape-aware routing, 6-component scoring, and intelligent similarity-based shape search. Export as GPX for Strava, Garmin, Komoot.",
+  "description": "Run2Art — create GPS art running routes from geometric shapes. Features 20 optimised templates, shape-aware routing, similarity clustering, and GPX export for Strava, Garmin, Komoot.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
