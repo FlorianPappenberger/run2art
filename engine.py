@@ -512,11 +512,11 @@ def route_graph(G, waypoints, weight='length', kdtree_data=None):
         return None
 
 
-def route_shape_aware(G, waypoints, ideal_line, kdtree_data=None):
+def route_shape_aware(G, waypoints, ideal_line, penalty=10.0, kdtree_data=None):
     """Route with shape-deviation lazy weight function."""
     if G is None or not ideal_line or len(ideal_line) < 2:
         return route_graph(G, waypoints, kdtree_data=kdtree_data)
-    weight_fn = _make_shape_weight_fn(G, ideal_line)
+    weight_fn = _make_shape_weight_fn(G, ideal_line, penalty=penalty)
     return route_graph(G, waypoints, weight=weight_fn, kdtree_data=kdtree_data)
 
 
@@ -572,16 +572,18 @@ def fetch_graph(center, dist=2500):
 # ═══════════════════════════════════════════════════════════════════════════
 
 def fit_and_score(G, pts, rot, scale, center,
-                  dense_spacing=80, curve_spacing=35, kdtree_data=None):
-    """Densify → route (shape-aware if possible) → score."""
+                  dense_spacing=40, curve_spacing=18, kdtree_data=None,
+                  refine=False):
+    """Densify → route (shape-aware if possible) → optional refine → score."""
     wps = shape_to_latlngs(pts, center, scale, rot)
     dense = adaptive_densify(wps, base_spacing=dense_spacing,
                              curve_spacing=curve_spacing)
-    ideal = adaptive_densify(wps, base_spacing=60, curve_spacing=25)
+    ideal = adaptive_densify(wps, base_spacing=35, curve_spacing=15)
 
     route = None
     if G:
-        route = route_shape_aware(G, dense, ideal, kdtree_data=kdtree_data)
+        route = route_shape_aware(G, dense, ideal, penalty=10.0,
+                                  kdtree_data=kdtree_data)
         if not route:
             route = route_graph(G, dense, kdtree_data=kdtree_data)
     if not route:
@@ -589,17 +591,71 @@ def fit_and_score(G, pts, rot, scale, center,
     if not route:
         return (1e9, None)
 
+    # Refinement pass: re-route with corrective waypoints where route deviates
+    if refine and G and route and len(ideal) >= 4:
+        route = _refine_route(G, route, ideal, dense, kdtree_data)
+
     return (bidirectional_score(route, ideal), route)
+
+
+def _refine_route(G, route, ideal, original_wps, kdtree_data):
+    """One-pass refinement: find worst-deviation points and re-route with
+    extra corrective waypoints inserted."""
+    ideal_s = sample_polyline(ideal, min(60, len(ideal) * 2))
+    route_s = sample_polyline(route, min(80, len(route)))
+    if len(ideal_s) < 4 or len(route_s) < 4:
+        return route
+
+    # For each ideal point, find its distance to the nearest route point
+    ia = np.asarray(ideal_s, dtype=np.float64)
+    ra = np.asarray(route_s, dtype=np.float64)
+    dists = haversine_matrix(ia[:, 0], ia[:, 1], ra[:, 0], ra[:, 1]).min(axis=1)
+
+    # Find ideal points where deviation > 80m — these need corrective waypoints
+    threshold = 80.0
+    bad_indices = np.where(dists > threshold)[0]
+    if len(bad_indices) == 0:
+        return route  # Route is already good enough
+
+    # Build corrective waypoint list: original waypoints + inserted ideal points
+    # at high-deviation locations
+    corrective = [ideal_s[i] for i in bad_indices[::2]]  # every other to avoid overload
+    if not corrective:
+        return route
+
+    # Merge corrective points into original waypoints by finding closest insertion
+    merged = list(original_wps)
+    for cp in corrective:
+        best_pos, best_d = 0, 1e9
+        for k in range(len(merged) - 1):
+            d = point_to_segment_dist(cp, merged[k], merged[k + 1])
+            if d < best_d:
+                best_d = d
+                best_pos = k + 1
+        merged.insert(best_pos, cp)
+
+    # Re-route with the augmented waypoint list
+    new_route = route_shape_aware(G, merged, ideal, penalty=12.0,
+                                  kdtree_data=kdtree_data)
+    if new_route and bidirectional_score(new_route, ideal) < bidirectional_score(route, ideal):
+        return new_route
+    return route
 
 
 def make_result(route, score, rot, scale, center, idx=None, name=""):
     """Build a standard result dict."""
+    length_m = 0.0
+    if route and len(route) >= 2:
+        for i in range(len(route) - 1):
+            length_m += haversine(route[i][0], route[i][1],
+                                  route[i+1][0], route[i+1][1])
     r = {
         "route": route,
         "score": round(score, 1),
         "rotation": round(rot, 1),
         "scale": round(scale, 5),
         "center": [round(center[0], 6), round(center[1], 6)],
+        "route_length_m": round(length_m, 0),
     }
     if idx is not None:
         r["shape_index"] = idx
@@ -670,7 +726,7 @@ def mode_fit(payload):
 
     # Step 1: Coarse scan
     rotations = list(range(0, 360, 45))                # 8
-    scales = [0.006, 0.009, 0.012, 0.016, 0.021]      # 5
+    scales = [0.010, 0.014, 0.018, 0.023, 0.030]      # 5 — larger for better road coverage
     offsets = make_offsets(km_range=1.0, steps=2)       # 9
 
     if G:
@@ -702,6 +758,16 @@ def mode_fit(payload):
                         log(f"[fit] Best: rot={r2:.0f}° scale={s2:.4f} "
                             f"score={score:.1f}m")
 
+    # Refinement pass on the best result
+    if best and best_score < 1e9:
+        r2, s2, c2 = best['rotation'], best['scale'], best['center']
+        ref_score, ref_route = fit_and_score(G, pts, r2, s2, c2,
+                                              kdtree_data=kd, refine=True)
+        if ref_score < best_score:
+            best = make_result(ref_route, ref_score, r2, s2, c2, idx, name)
+            best_score = ref_score
+            log(f"[fit] Refined: score={ref_score:.1f}m")
+
     log(f"[fit] Done — {n_routed} routings, best={best_score:.1f}m")
     return best or {"error": "Could not trace shape on road network"}
 
@@ -732,9 +798,9 @@ def mode_optimize(payload):
 
     kd = build_kdtree(G)
 
-    # Step 1: Coarse
+    # Step 1: Coarse — larger scales for better road matching
     rotations = list(range(0, 360, 15))
-    scales = [0.005, 0.008, 0.011, 0.014, 0.017, 0.020, 0.025]
+    scales = [0.010, 0.014, 0.018, 0.022, 0.027, 0.033, 0.040]
     offsets = make_offsets(km_range=2.0, steps=3)
     coarse = coarse_grid_search(G, pts, center, rotations, scales,
                                 offsets, densify_spacing=200,
@@ -744,6 +810,15 @@ def mode_optimize(payload):
     best = _fine_search(G, pts, coarse[:10], n_fine=8, kdtree_data=kd)
     if best is None:
         return {"error": "Could not fit shape. Try a different area."}
+
+    # Refinement pass on best candidate
+    r2, s2, c2 = best['rotation'], best['scale'], best['center']
+    ref_score, ref_route = fit_and_score(G, pts, r2, s2, c2,
+                                          kdtree_data=kd, refine=True)
+    if ref_route and ref_score < best.get('score', 1e9):
+        best = make_result(ref_route, ref_score, r2, s2, c2)
+        log(f"[optimize] Refined: score={ref_score:.1f}m")
+
     best["shape_index"] = idx
     best["shape_name"] = name
     return best
