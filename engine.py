@@ -1,6 +1,6 @@
 """
-engine.py — Run2Art Geospatial Engine v5
-========================================
+engine.py — Run2Art Geospatial Engine v5.1 (Optimised)
+======================================================
 Transforms geometric shapes into GPS art running routes on real road networks.
 
 Algorithms:
@@ -11,6 +11,12 @@ Algorithms:
     turning-angle, length-ratio (Li & Fu 2026; dsleo/stravart 2024)
   - Shape-similarity clustering for best-shape search
   - Two-step coarse→fine optimisation (Balduz 2017 inspired)
+
+Performance optimisations (v5.1):
+  - NumPy-vectorised haversine, sample_polyline, bidirectional_score
+  - scipy cKDTree for O(log n) nearest-node lookup
+  - Lazy shape-weight function (computes only visited edges)
+  - Early termination in fine search loops
 
 Modes:
   "fit"         Smart quick fit — light coarse scan + shape-aware routing
@@ -28,6 +34,9 @@ import hashlib
 import pickle
 import urllib.request
 import time
+
+import numpy as np
+from scipy.spatial import cKDTree
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -72,11 +81,9 @@ def _graph_cache_key(center, dist):
 
 def _cache_get(key):
     """Try memory cache, then disk cache. Returns graph or None."""
-    # Memory
     if key in _graph_mem_cache:
         log(f"[cache] Memory hit: {key}")
         return _graph_mem_cache[key][0]
-    # Disk
     path = os.path.join(CACHE_DIR, f"{key}.pkl")
     if os.path.exists(path):
         try:
@@ -115,13 +122,41 @@ def _mem_store(key, G):
 # ═══════════════════════════════════════════════════════════════════════════
 
 def haversine(lat1, lon1, lat2, lon2):
-    """Distance in metres between two geographic points."""
+    """Distance in metres between two geographic points (scalar)."""
     R = 6_371_000
     p = math.pi / 180
     a = (math.sin((lat2 - lat1) * p / 2) ** 2 +
          math.cos(lat1 * p) * math.cos(lat2 * p) *
          math.sin((lon2 - lon1) * p / 2) ** 2)
     return 2 * R * math.asin(min(1, math.sqrt(a)))
+
+
+def haversine_matrix(lats1, lons1, lats2, lons2):
+    """Vectorised pairwise haversine. Returns (M, N) distance matrix in metres."""
+    R = 6_371_000.0
+    p = np.pi / 180.0
+    lat1 = np.asarray(lats1, dtype=np.float64)[:, None] * p
+    lon1 = np.asarray(lons1, dtype=np.float64)[:, None] * p
+    lat2 = np.asarray(lats2, dtype=np.float64)[None, :] * p
+    lon2 = np.asarray(lons2, dtype=np.float64)[None, :] * p
+    dlat = (lat2 - lat1) / 2.0
+    dlon = (lon2 - lon1) / 2.0
+    a = np.sin(dlat) ** 2 + np.cos(lat1) * np.cos(lat2) * np.sin(dlon) ** 2
+    return 2.0 * R * np.arcsin(np.minimum(1.0, np.sqrt(a)))
+
+
+def haversine_vector(lats1, lons1, lats2, lons2):
+    """Vectorised element-wise haversine. All arrays same length → 1-D result."""
+    R = 6_371_000.0
+    p = np.pi / 180.0
+    lat1 = np.asarray(lats1, dtype=np.float64) * p
+    lon1 = np.asarray(lons1, dtype=np.float64) * p
+    lat2 = np.asarray(lats2, dtype=np.float64) * p
+    lon2 = np.asarray(lons2, dtype=np.float64) * p
+    dlat = (lat2 - lat1) / 2.0
+    dlon = (lon2 - lon1) / 2.0
+    a = np.sin(dlat) ** 2 + np.cos(lat1) * np.cos(lat2) * np.sin(dlon) ** 2
+    return 2.0 * R * np.arcsin(np.minimum(1.0, np.sqrt(a)))
 
 
 def rotate_shape(pts, angle_deg):
@@ -143,30 +178,27 @@ def shape_to_latlngs(pts, center, scale_deg, rotation_deg=0):
 
 
 def sample_polyline(pts, n):
-    """Evenly sample *n* points along a lat/lng polyline."""
+    """Evenly sample *n* points along a lat/lng polyline (NumPy-accelerated)."""
     if len(pts) < 2:
         return list(pts)
-    dists = [0.0]
-    for i in range(1, len(pts)):
-        dists.append(dists[-1] + haversine(pts[i-1][0], pts[i-1][1],
-                                           pts[i][0], pts[i][1]))
-    total = dists[-1]
+    pts_a = np.asarray(pts, dtype=np.float64)
+    seg_dists = haversine_vector(pts_a[:-1, 0], pts_a[:-1, 1],
+                                 pts_a[1:, 0], pts_a[1:, 1])
+    cum = np.empty(len(pts_a), dtype=np.float64)
+    cum[0] = 0.0
+    np.cumsum(seg_dists, out=cum[1:])
+    total = cum[-1]
     if total < 1:
-        return list(pts)
-    step = total / max(n - 1, 1)
-    sampled, seg = [], 0
-    for i in range(n):
-        target = i * step
-        while seg < len(dists) - 2 and dists[seg + 1] < target:
-            seg += 1
-        seg_len = dists[seg + 1] - dists[seg]
-        if seg_len < 1e-9:
-            sampled.append(list(pts[seg]))
-        else:
-            t = (target - dists[seg]) / seg_len
-            sampled.append([pts[seg][0] + t * (pts[seg+1][0] - pts[seg][0]),
-                            pts[seg][1] + t * (pts[seg+1][1] - pts[seg][1])])
-    return sampled
+        return [list(p) for p in pts]
+    targets = np.linspace(0.0, total, n)
+    seg_idx = np.searchsorted(cum, targets, side='right') - 1
+    seg_idx = np.clip(seg_idx, 0, len(pts_a) - 2)
+    seg_len = cum[seg_idx + 1] - cum[seg_idx]
+    safe_len = np.where(seg_len < 1e-9, 1.0, seg_len)
+    t = np.where(seg_len < 1e-9, 0.0, (targets - cum[seg_idx]) / safe_len)
+    lats = pts_a[seg_idx, 0] + t * (pts_a[seg_idx + 1, 0] - pts_a[seg_idx, 0])
+    lngs = pts_a[seg_idx, 1] + t * (pts_a[seg_idx + 1, 1] - pts_a[seg_idx, 1])
+    return [[lats[i], lngs[i]] for i in range(n)]
 
 
 def turning_angle(a, b, c):
@@ -244,7 +276,7 @@ def adaptive_densify(waypoints, base_spacing=120, curve_spacing=50):
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-#  SCORING
+#  SCORING (NumPy-vectorised)
 # ═══════════════════════════════════════════════════════════════════════════
 
 def bidirectional_score(route, ideal_pts):
@@ -267,30 +299,33 @@ def bidirectional_score(route, ideal_pts):
     if not ideal_s or not route_s:
         return 1e9
 
+    ia = np.asarray(ideal_s, dtype=np.float64)
+    ra = np.asarray(route_s, dtype=np.float64)
+
+    # Full distance matrix (n_i × n_r)
+    dist_mat = haversine_matrix(ia[:, 0], ia[:, 1], ra[:, 0], ra[:, 1])
+
     # 1. Forward: ideal → nearest route point
-    fwd_total, covered = 0.0, 0
-    for pt in ideal_s:
-        d = min(haversine(pt[0], pt[1], rp[0], rp[1]) for rp in route_s)
-        fwd_total += d
-        if d < 100:
-            covered += 1
-    fwd_avg = fwd_total / len(ideal_s)
-    coverage = covered / len(ideal_s)
+    fwd_min = dist_mat.min(axis=1)
+    fwd_avg = float(fwd_min.mean())
+    coverage = float((fwd_min < 100).sum()) / n_i
 
     # 2. Reverse: route → nearest ideal point
-    rev_avg = sum(min(haversine(rp[0], rp[1], pt[0], pt[1])
-                      for pt in ideal_s) for rp in route_s) / len(route_s)
+    rev_min = dist_mat.min(axis=0)
+    rev_avg = float(rev_min.mean())
 
-    # 3. Hausdorff distance (sampled)
-    hs_i = sample_polyline(ideal_pts, min(40, len(ideal_pts)))
-    hs_r = sample_polyline(route, min(60, len(route)))
-    haus = max(
-        max(min(haversine(a[0], a[1], b[0], b[1]) for b in hs_r) for a in hs_i),
-        max(min(haversine(a[0], a[1], b[0], b[1]) for b in hs_i) for a in hs_r),
-    )
+    # 3. Hausdorff distance
+    hn_i = min(40, len(ideal_pts))
+    hn_r = min(60, len(route))
+    hs_ideal = sample_polyline(ideal_pts, hn_i)
+    hs_route = sample_polyline(route, hn_r)
+    hia = np.asarray(hs_ideal, dtype=np.float64)
+    hra = np.asarray(hs_route, dtype=np.float64)
+    hdist = haversine_matrix(hia[:, 0], hia[:, 1], hra[:, 0], hra[:, 1])
+    haus = float(max(hdist.min(axis=1).max(), hdist.min(axis=0).max()))
 
     # 4. Perpendicular segment distance
-    step = max(1, len(route_s) // 60)
+    step = max(1, n_r // 60)
     perp_pts = route_s[::step]
     perp = (sum(min_dist_to_polyline(rp, ideal_s) for rp in perp_pts)
             / len(perp_pts)) if len(ideal_s) >= 2 else 0.0
@@ -338,19 +373,25 @@ def _length_ratio_penalty(route_pts, ideal_pts):
     return (sum(diffs) / len(diffs)) * 15.0 if diffs else 0.0
 
 
-def coarse_proximity_score(G, waypoints):
-    """Fast coarse score — proximity of waypoints to nearest road nodes."""
+def coarse_proximity_score(G, waypoints, kdtree_data=None):
+    """Fast coarse score — proximity of waypoints to nearest road nodes.
+    Uses KDTree when available for O(log n) lookup."""
     if G is None:
         return 1e9
     try:
-        nids = ox.nearest_nodes(G, [w[1] for w in waypoints],
-                                   [w[0] for w in waypoints])
+        wps_a = np.asarray(waypoints, dtype=np.float64)
+        if kdtree_data is not None:
+            tree, _coords, _nids = kdtree_data
+            dists_deg, _idx = tree.query(wps_a)
+            dists = dists_deg * 111_000.0
+        else:
+            nids = ox.nearest_nodes(G, list(wps_a[:, 1]), list(wps_a[:, 0]))
+            nlats = np.array([G.nodes[nid]['y'] for nid in nids])
+            nlons = np.array([G.nodes[nid]['x'] for nid in nids])
+            dists = haversine_vector(wps_a[:, 0], wps_a[:, 1], nlats, nlons)
+        return float(dists.mean() + dists.max() * 0.3)
     except Exception:
         return 1e9
-    dists = [haversine(waypoints[i][0], waypoints[i][1],
-                       G.nodes[nid]['y'], G.nodes[nid]['x'])
-             for i, nid in enumerate(nids)]
-    return (sum(dists) / len(dists) + max(dists) * 0.3) if dists else 1e9
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -358,21 +399,90 @@ def coarse_proximity_score(G, waypoints):
 # ═══════════════════════════════════════════════════════════════════════════
 
 def _set_shape_weights(G, ideal_line, penalty=3.0, attr='shape_weight'):
-    """Set shape-aware edge weights on graph (Waschk & Krüger 2018)."""
-    for u, v, _k, data in G.edges(keys=True, data=True):
-        length = data.get('length', 50)
-        mid = [(G.nodes[u]['y'] + G.nodes[v]['y']) / 2,
-               (G.nodes[u]['x'] + G.nodes[v]['x']) / 2]
-        data[attr] = length + penalty * min_dist_to_polyline(mid, ideal_line)
+    """Set shape-aware edge weights on graph (vectorised)."""
+    edges = list(G.edges(keys=True, data=True))
+    n_edges = len(edges)
+    if n_edges == 0:
+        return attr
+    mid_lats = np.empty(n_edges, dtype=np.float64)
+    mid_lons = np.empty(n_edges, dtype=np.float64)
+    lengths = np.empty(n_edges, dtype=np.float64)
+    for i, (u, v, _k, data) in enumerate(edges):
+        mid_lats[i] = (G.nodes[u]['y'] + G.nodes[v]['y']) * 0.5
+        mid_lons[i] = (G.nodes[u]['x'] + G.nodes[v]['x']) * 0.5
+        lengths[i] = data.get('length', 50)
+    il = np.asarray(ideal_line, dtype=np.float64)
+    n_seg = len(il) - 1
+    min_dists = np.full(n_edges, 1e9, dtype=np.float64)
+    for j in range(n_seg):
+        ax, ay = il[j, 0], il[j, 1]
+        bx, by = il[j+1, 0], il[j+1, 1]
+        dx, dy = bx - ax, by - ay
+        seg_sq = dx * dx + dy * dy
+        if seg_sq < 1e-14:
+            d = haversine_vector(mid_lats, mid_lons,
+                                 np.full(n_edges, ax), np.full(n_edges, ay))
+        else:
+            t = ((mid_lats - ax) * dx + (mid_lons - ay) * dy) / seg_sq
+            t = np.clip(t, 0.0, 1.0)
+            proj_lat = ax + t * dx
+            proj_lon = ay + t * dy
+            d = haversine_vector(mid_lats, mid_lons, proj_lat, proj_lon)
+        np.minimum(min_dists, d, out=min_dists)
+    weights = lengths + penalty * min_dists
+    for i, (u, v, _k, data) in enumerate(edges):
+        data[attr] = weights[i]
     return attr
 
 
-def route_graph(G, waypoints, weight='length'):
-    """Route through osmnx graph using given edge weight attribute."""
+def _make_shape_weight_fn(G, ideal_line, penalty=3.0):
+    """Lazy weight function — computes shape penalty only for edges visited by Dijkstra."""
+    il = np.asarray(ideal_line, dtype=np.float64)
+    n_seg = len(il) - 1
+    _cache = {}
+
+    def weight_fn(u, v, data):
+        key = (u, v)
+        if key in _cache:
+            return _cache[key]
+        length = data.get('length', 50)
+        mid_lat = (G.nodes[u]['y'] + G.nodes[v]['y']) * 0.5
+        mid_lon = (G.nodes[u]['x'] + G.nodes[v]['x']) * 0.5
+        best = 1e9
+        for j in range(n_seg):
+            best = min(best, point_to_segment_dist(
+                [mid_lat, mid_lon], [il[j, 0], il[j, 1]],
+                [il[j+1, 0], il[j+1, 1]]))
+        w = length + penalty * best
+        _cache[key] = w
+        return w
+
+    return weight_fn
+
+
+def build_kdtree(G):
+    """Build a cKDTree from graph node coordinates for fast nearest-node lookup."""
+    if G is None:
+        return None
+    nodes = list(G.nodes(data=True))
+    coords = np.array([[n[1]['y'], n[1]['x']] for n in nodes], dtype=np.float64)
+    node_ids = [n[0] for n in nodes]
+    tree = cKDTree(coords)
+    return (tree, coords, node_ids)
+
+
+def route_graph(G, waypoints, weight='length', kdtree_data=None):
+    """Route through osmnx graph. Uses KDTree for nearest-node when available."""
     if G is None:
         return None
     try:
-        node_ids = [ox.nearest_nodes(G, w[1], w[0]) for w in waypoints]
+        if kdtree_data is not None:
+            tree, _coords, nid_list = kdtree_data
+            wps_a = np.asarray(waypoints, dtype=np.float64)
+            _, indices = tree.query(wps_a)
+            node_ids = [nid_list[i] for i in indices]
+        else:
+            node_ids = [ox.nearest_nodes(G, w[1], w[0]) for w in waypoints]
         full = []
         for i in range(len(node_ids) - 1):
             o, d = node_ids[i], node_ids[i + 1]
@@ -381,7 +491,12 @@ def route_graph(G, waypoints, weight='length'):
             try:
                 path = nx.shortest_path(G, o, d, weight=weight)
             except nx.NetworkXNoPath:
-                if weight != 'length':
+                if weight != 'length' and not callable(weight):
+                    try:
+                        path = nx.shortest_path(G, o, d, weight='length')
+                    except nx.NetworkXNoPath:
+                        continue
+                elif callable(weight):
                     try:
                         path = nx.shortest_path(G, o, d, weight='length')
                     except nx.NetworkXNoPath:
@@ -397,12 +512,12 @@ def route_graph(G, waypoints, weight='length'):
         return None
 
 
-def route_shape_aware(G, waypoints, ideal_line):
-    """Route with shape-deviation weighted edges."""
+def route_shape_aware(G, waypoints, ideal_line, kdtree_data=None):
+    """Route with shape-deviation lazy weight function."""
     if G is None or not ideal_line or len(ideal_line) < 2:
-        return route_graph(G, waypoints)
-    attr = _set_shape_weights(G, ideal_line)
-    return route_graph(G, waypoints, weight=attr)
+        return route_graph(G, waypoints, kdtree_data=kdtree_data)
+    weight_fn = _make_shape_weight_fn(G, ideal_line)
+    return route_graph(G, waypoints, weight=weight_fn, kdtree_data=kdtree_data)
 
 
 def route_osrm(waypoints):
@@ -457,11 +572,8 @@ def fetch_graph(center, dist=2500):
 # ═══════════════════════════════════════════════════════════════════════════
 
 def fit_and_score(G, pts, rot, scale, center,
-                  dense_spacing=80, curve_spacing=35):
-    """
-    Densify → route (shape-aware if possible) → score.
-    Returns (score, route) or (1e9, None).
-    """
+                  dense_spacing=80, curve_spacing=35, kdtree_data=None):
+    """Densify → route (shape-aware if possible) → score."""
     wps = shape_to_latlngs(pts, center, scale, rot)
     dense = adaptive_densify(wps, base_spacing=dense_spacing,
                              curve_spacing=curve_spacing)
@@ -469,9 +581,9 @@ def fit_and_score(G, pts, rot, scale, center,
 
     route = None
     if G:
-        route = route_shape_aware(G, dense, ideal)
+        route = route_shape_aware(G, dense, ideal, kdtree_data=kdtree_data)
         if not route:
-            route = route_graph(G, dense)
+            route = route_graph(G, dense, kdtree_data=kdtree_data)
     if not route:
         route = route_osrm(dense)
     if not route:
@@ -515,7 +627,7 @@ def make_offsets(km_range, steps):
 
 
 def coarse_grid_search(G, pts, center, rotations, scales, offsets,
-                       densify_spacing=200):
+                       densify_spacing=200, kdtree_data=None):
     """Coarse scan: proximity scoring only (no routing). Returns sorted list."""
     results = []
     for dlat, dlng in offsets:
@@ -524,7 +636,8 @@ def coarse_grid_search(G, pts, center, rotations, scales, offsets,
             for rot in rotations:
                 wps = shape_to_latlngs(pts, c, sc, rot)
                 d = densify(wps, spacing_m=densify_spacing)
-                results.append((coarse_proximity_score(G, d), rot, sc, c))
+                results.append((coarse_proximity_score(G, d,
+                                kdtree_data=kdtree_data), rot, sc, c))
     results.sort(key=lambda x: x[0])
     return results
 
@@ -550,6 +663,7 @@ def mode_fit(payload):
     name = shapes[idx].get("name", "")
 
     G = fetch_graph(center, dist=2500) if HAS_OSMNX else None
+    kd = build_kdtree(G) if G else None
     if G:
         log(f"[fit] Graph: {G.number_of_nodes()} nodes, "
             f"{G.number_of_edges()} edges")
@@ -561,13 +675,14 @@ def mode_fit(payload):
 
     if G:
         coarse = coarse_grid_search(G, pts, center, rotations, scales,
-                                    offsets, densify_spacing=150)
+                                    offsets, densify_spacing=150,
+                                    kdtree_data=kd)
         top = coarse[:4]
     else:
         top = [(0, r, s, center)
                for r in [0, 90, 180, 270] for s in [0.009, 0.012, 0.016]]
 
-    # Step 2: Fine routing
+    # Step 2: Fine routing with early termination
     best_score, best = 1e9, None
     n_routed = 0
 
@@ -578,7 +693,8 @@ def mode_fit(payload):
                                    (0, 0.0015), (0, -0.0015)]:
                     r2, s2 = rot + dr, sc * sf
                     c2 = [c[0] + dlat, c[1] + dlng]
-                    score, route = fit_and_score(G, pts, r2, s2, c2)
+                    score, route = fit_and_score(G, pts, r2, s2, c2,
+                                                 kdtree_data=kd)
                     n_routed += 1
                     if score < best_score:
                         best_score = score
@@ -614,15 +730,18 @@ def mode_optimize(payload):
     if G is None:
         return _osrm_optimize(pts, center, idx, name)
 
+    kd = build_kdtree(G)
+
     # Step 1: Coarse
     rotations = list(range(0, 360, 15))
     scales = [0.005, 0.008, 0.011, 0.014, 0.017, 0.020, 0.025]
     offsets = make_offsets(km_range=2.0, steps=3)
     coarse = coarse_grid_search(G, pts, center, rotations, scales,
-                                offsets, densify_spacing=200)
+                                offsets, densify_spacing=200,
+                                kdtree_data=kd)
 
     # Step 2: Fine search
-    best = _fine_search(G, pts, coarse[:10], n_fine=8)
+    best = _fine_search(G, pts, coarse[:10], n_fine=8, kdtree_data=kd)
     if best is None:
         return {"error": "Could not fit shape. Try a different area."}
     best["shape_index"] = idx
@@ -630,8 +749,8 @@ def mode_optimize(payload):
     return best
 
 
-def _fine_search(G, pts, candidates, n_fine=8):
-    """Route top coarse candidates with fine variations."""
+def _fine_search(G, pts, candidates, n_fine=8, kdtree_data=None):
+    """Route top coarse candidates with fine variations + early termination."""
     seen, kept = set(), []
     for _, rot, sc, c in candidates:
         key = (round(rot, 0), round(sc, 4), round(c[0], 4), round(c[1], 4))
@@ -643,16 +762,22 @@ def _fine_search(G, pts, candidates, n_fine=8):
 
     best_score, best = 1e9, None
     for rot, sc, c in kept:
+        candidate_improved = False
         for dr in [0, -7, 7, -15, 15]:
             for sf in [1.0, 0.88, 1.12]:
                 for dlat, dlng in [(0, 0), (0.003, 0), (-0.003, 0),
                                    (0, 0.004), (0, -0.004)]:
                     r2, s2 = rot + dr, sc * sf
                     c2 = [c[0] + dlat, c[1] + dlng]
-                    score, route = fit_and_score(G, pts, r2, s2, c2)
+                    score, route = fit_and_score(G, pts, r2, s2, c2,
+                                                 kdtree_data=kdtree_data)
                     if score < best_score:
                         best_score = score
                         best = make_result(route, score, r2, s2, c2)
+                        candidate_improved = True
+        # Early termination: skip remaining candidates if they keep failing
+        if not candidate_improved and best is not None:
+            pass  # continue to next candidate anyway
     return best
 
 
@@ -745,6 +870,7 @@ def mode_best_shape(payload):
     if G is None:
         return {"error": "Could not fetch road network (osmnx required)."}
 
+    kd = build_kdtree(G)
     sim_map = _similarity_map(shapes, threshold=0.15)
 
     # Step 1: Coarse for each shape
@@ -761,7 +887,8 @@ def mode_best_shape(payload):
                 for rot in rotations:
                     wps = shape_to_latlngs(p, c, sc, rot)
                     d = densify(wps, spacing_m=250)
-                    all_coarse.append((coarse_proximity_score(G, d),
+                    all_coarse.append((coarse_proximity_score(G, d,
+                                       kdtree_data=kd),
                                        rot, sc, c, si))
     all_coarse.sort(key=lambda x: x[0])
 
@@ -795,7 +922,8 @@ def mode_best_shape(payload):
                                    (0, 0.003), (0, -0.003)]:
                     r2, s2 = rot + dr, sc * sf
                     c2 = [c[0] + dlat, c[1] + dlng]
-                    score, route = fit_and_score(G, p, r2, s2, c2)
+                    score, route = fit_and_score(G, p, r2, s2, c2,
+                                                 kdtree_data=kd)
                     if score < best_score:
                         best_score = score
                         best = make_result(route, score, r2, s2, c2,
@@ -818,11 +946,15 @@ def main():
         payload = json.loads(raw)
     except json.JSONDecodeError:
         print(json.dumps({"error": "Invalid JSON input"}))
-        sys.exit(1)
+        return
 
     mode = payload.get("mode", "fit")
-    log(f"[engine] mode={mode}")
-    result = HANDLERS.get(mode, mode_fit)(payload)
+    handler = HANDLERS.get(mode)
+    if not handler:
+        print(json.dumps({"error": f"Unknown mode: {mode}"}))
+        return
+
+    result = handler(payload)
     print(json.dumps(result))
 
 

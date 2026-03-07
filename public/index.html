@@ -606,6 +606,13 @@ async function loadBenchmark() {
       setCenter(benchmarkData.center);
     }
     toast('Loaded benchmark: ' + benchmarkData.location + ' (' + benchmarkData.generated_at + ')', 'green');
+    // Auto-display the first result
+    var firstItems = benchmarkData[bmActiveMode] || [];
+    if (firstItems.length > 0 && firstItems[0].route) {
+      var r = firstItems[0];
+      var idx = typeof r.global_shape_index === 'number' ? r.global_shape_index : r.shape_index;
+      displayBmResult(r, idx);
+    }
   } catch(e) {
     toast('Failed to load benchmark results.');
   }
@@ -668,19 +675,27 @@ function renderBmMode(mode) {
     });
     list.appendChild(row);
   });
+  // Auto-display first result when switching tabs
+  if (items.length > 0 && items[0].route) {
+    var first = items[0];
+    var firstIdx = typeof first.global_shape_index === 'number' ? first.global_shape_index : first.shape_index;
+    displayBmResult(first, firstIdx);
+  }
 }
 
 function displayBmResult(r, shapeIdx) {
+  var idx = typeof shapeIdx === 'number' ? shapeIdx :
+            typeof r.shape_index === 'number' ? r.shape_index : selectedShapeIdx;
+  // selectShape first (it clears fitted), then draw the route on top
+  if (typeof idx === 'number' && idx >= 0 && idx < SHAPES.length) {
+    selectShape(idx);
+  }
+
   // Display precomputed route on map
   fittedCoords = r.route;
   clearFitted();
   fittedLayer = L.polyline(fittedCoords, { color: '#00b894', weight: 4 }).addTo(map);
 
-  var idx = typeof shapeIdx === 'number' ? shapeIdx :
-            typeof r.shape_index === 'number' ? r.shape_index : selectedShapeIdx;
-  if (typeof idx === 'number' && idx >= 0 && idx < SHAPES.length) {
-    selectShape(idx);
-  }
   if (r.center) {
     map.flyTo(r.center, 15, { duration: 0.8 });
   }
