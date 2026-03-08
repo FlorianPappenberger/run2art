@@ -47,7 +47,7 @@ from geometry import (
     densify, adaptive_densify, identify_anchor_points,
 )
 from scoring import bidirectional_score, coarse_proximity_score
-from scoring_v8 import score_v8, frechet_score
+from scoring_v8 import score_v8, frechet_score, frechet_normalized
 from routing import (
     log, HAS_OSMNX,
     fetch_graph, build_kdtree, build_corridor_subgraph,
@@ -79,9 +79,15 @@ def fit_and_score(G, pts, rot, scale, center,
         router = CoreRouter(G, ideal)
         route = router.route()
         if route and len(route) >= 2:
-            return (router.score(route), route)
+            score = router.score(route)
+            # v8.1 Fréchet reject gate: penalize routes with poor shape fidelity
+            fd_norm = frechet_normalized(route, ideal)
+            if fd_norm > 0.12:
+                score *= 2.0  # heavy penalty → optimizer picks a different candidate
+                log(f"[v8.1] Fréchet gate: fd_norm={fd_norm:.3f} > 0.12 → score doubled to {score:.1f}")
+            return (score, route)
     except Exception as e:
-        log(f"[v8] CoreRouter failed ({e}), falling back to v7 pipeline")
+        log(f"[v8.1] CoreRouter failed ({e}), falling back to v7 pipeline")
 
     # Fallback to v7 pipeline
     return _fit_and_score_v7(G, pts, rot, scale, center,
@@ -531,7 +537,7 @@ def mode_best_shape(payload):
 HANDLERS = {"fit": mode_fit, "optimize": mode_optimize,
             "best_shape": mode_best_shape}
 
-ENGINE_VERSION = "8.0"
+ENGINE_VERSION = "8.1"
 
 
 def main():

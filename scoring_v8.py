@@ -103,6 +103,33 @@ def discrete_frechet_fast(P, Q):
 #  SCALE-INVARIANT FRÉCHET
 # ═══════════════════════════════════════════════════════════════════════════
 
+def frechet_normalized(route, ideal_pts, n_sample=60):
+    """Fréchet distance in normalized [0,1] space (unitless).
+
+    Returns value in [0, ~1.4]. Used as the reject gate threshold.
+    """
+    if not route or len(route) < 2 or not ideal_pts or len(ideal_pts) < 2:
+        return 1e9
+
+    r_s = sample_polyline(route, min(n_sample, len(route)))
+    i_s = sample_polyline(ideal_pts, min(n_sample, len(ideal_pts)))
+    ra = np.asarray(r_s, dtype=np.float64)
+    ia = np.asarray(i_s, dtype=np.float64)
+    r_norm = normalize_to_unit_box(ra)
+    i_norm = normalize_to_unit_box(ia)
+
+    # Try shapely's C-level Fréchet first
+    try:
+        from shapely.geometry import LineString
+        r_line = LineString(r_norm)
+        i_line = LineString(i_norm)
+        return float(r_line.hausdorff_distance(i_line))  # discrete_frechet fallback
+    except Exception:
+        pass
+
+    return discrete_frechet_fast(r_norm, i_norm)
+
+
 def frechet_score(route, ideal_pts, n_sample=60):
     """Scale-invariant Fréchet distance between route and ideal.
 

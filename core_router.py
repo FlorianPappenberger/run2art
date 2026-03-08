@@ -82,10 +82,13 @@ def heading_penalty_vectorized(edge_bearings, local_tangents):
     penalty[mask_mid] = (dev[mask_mid] - 20.0) / 25.0 * 100.0
 
     mask_high = (dev >= 45.0) & (dev < 70.0)
-    penalty[mask_high] = 100.0 + (dev[mask_high] - 45.0) ** 2 * 0.32
+    penalty[mask_high] = 100.0 + (dev[mask_high] - 45.0) ** 2 * 0.40
 
-    mask_perp = dev >= 70.0
-    penalty[mask_perp] = 300.0
+    mask_vhigh = (dev >= 70.0) & (dev < 80.0)
+    penalty[mask_vhigh] = 350.0
+
+    mask_perp = dev >= 80.0
+    penalty[mask_perp] = 500.0
 
     return penalty
 
@@ -163,10 +166,13 @@ def build_adaptive_corridor(G, ideal_line, base_radius_m=200,
         corridor_nodes = set(nodes_gdf.index[candidates])
 
         if len(corridor_nodes) < 20:
-            # Widen everything
-            corridor_shape = corridor_shape.buffer(max_radius_m / 111_000.0)
-            candidates = nodes_gdf.sindex.query(corridor_shape, predicate='intersects')
-            corridor_nodes = set(nodes_gdf.index[candidates])
+            # Iterative widening: 100m steps up to 800m
+            for widen_m in range(100, 900, 100):
+                corridor_shape = corridor_shape.buffer(widen_m / 111_000.0)
+                candidates = nodes_gdf.sindex.query(corridor_shape, predicate='intersects')
+                corridor_nodes = set(nodes_gdf.index[candidates])
+                if len(corridor_nodes) >= 20:
+                    break
 
         if len(corridor_nodes) < 10:
             log(f"[v8-corridor] Too few nodes ({len(corridor_nodes)}), using full graph")
@@ -273,16 +279,83 @@ def _build_kdtree(G):
 #  VECTORIZED EDGE-WEIGHT PRECOMPUTATION
 # ═══════════════════════════════════════════════════════════════════════════
 
+def prune_perpendicular_edges(G_sub, ideal_line, tangent_field, max_deviation_deg=35.0):
+    """Remove edges whose heading deviates >max_deviation_deg from the local tangent.
+
+    Preserves edges in low-density areas (>150m from ideal) for connectivity.
+    Only prunes if the resulting graph remains weakly connected with >20 nodes.
+    """
+    import networkx as nx
+
+    il = np.asarray(ideal_line, dtype=np.float64)
+    tf = np.asarray(tangent_field, dtype=np.float64)
+    n_seg = len(il) - 1
+    if n_seg < 1:
+        return G_sub
+
+    edges = list(G_sub.edges(data=True, keys=True))
+    n_edges = len(edges)
+    if n_edges < 20:
+        return G_sub
+
+    # Compute edge bearings and nearest tangents
+    u_lats = np.array([G_sub.nodes[e[0]]['y'] for e in edges])
+    u_lngs = np.array([G_sub.nodes[e[0]]['x'] for e in edges])
+    v_lats = np.array([G_sub.nodes[e[1]]['y'] for e in edges])
+    v_lngs = np.array([G_sub.nodes[e[1]]['x'] for e in edges])
+
+    edge_bearings = np.degrees(np.arctan2(v_lngs - u_lngs, v_lats - u_lats)) % 360.0
+    mid_lats = (u_lats + v_lats) * 0.5
+    mid_lngs = (u_lngs + v_lngs) * 0.5
+
+    # Distance from each midpoint to nearest ideal segment
+    midpoints = np.column_stack([mid_lats, mid_lngs])
+    prox_dists = point_to_segments_vectorized(midpoints, il[:-1], il[1:])
+
+    # Find nearest tangent
+    seg_mids_lat = (il[:-1, 0] + il[1:, 0]) * 0.5
+    seg_mids_lng = (il[:-1, 1] + il[1:, 1]) * 0.5
+    d_to_segs = haversine_matrix(mid_lats, mid_lngs, seg_mids_lat, seg_mids_lng)
+    nearest_seg = d_to_segs.argmin(axis=1)
+    local_tangents = (tf[nearest_seg] + tf[np.minimum(nearest_seg + 1, len(tf) - 1)]) * 0.5
+
+    # Compute deviation (bidirectional)
+    dev = np.abs(edge_bearings - local_tangents) % 360.0
+    dev = np.where(dev > 180.0, 360.0 - dev, dev)
+    dev = np.where(dev > 90.0, 180.0 - dev, dev)
+
+    # Mark edges to prune: high deviation AND close to ideal line
+    to_prune = (dev > max_deviation_deg) & (prox_dists < 150.0)
+
+    edges_to_remove = [(e[0], e[1], e[2]) for e, prune in zip(edges, to_prune) if prune]
+    if not edges_to_remove:
+        return G_sub
+
+    # Check that pruning doesn't break connectivity
+    G_test = G_sub.copy()
+    G_test.remove_edges_from(edges_to_remove)
+    if G_test.number_of_edges() < 10:
+        return G_sub
+    if not nx.is_weakly_connected(G_test):
+        # Only keep the largest component, but check it's big enough
+        largest_cc = max(nx.weakly_connected_components(G_test), key=len)
+        if len(largest_cc) < G_sub.number_of_nodes() * 0.6:
+            return G_sub  # Too much damage, skip pruning
+        G_test = G_test.subgraph(largest_cc).copy()
+
+    n_pruned = len(edges_to_remove)
+    log(f"[v8.1-prune] Removed {n_pruned}/{n_edges} perpendicular edges (>{max_deviation_deg}°)")
+    return G_test
+
+
 def precompute_edge_weights(G_sub, ideal_line, tangent_field, apex_points,
-                            w_net=1.0, w_prox=12.0, w_head=8.0,
-                            w_uturn=1.0, w_bio=2.0,
+                            w_head=8.0, w_uturn=1.0, beta=0.0003,
                             tube_radius_m=300):
-    """Precompute all edge weights in one vectorized pass.
+    """v8.1: Multiplicative penalty field with additive heading/uturn.
+
+    Cost = L × H × (1 + β·d²) + w_head·heading + w_uturn·uturn
 
     Assigns attribute 'v8w' to each edge in G_sub.
-    A* / Dijkstra can then use weight='v8w' (string attribute) —
-    no Python callback per-edge.
-
     Returns: G_sub (modified in-place with 'v8w' attributes)
     """
     il = np.asarray(ideal_line, dtype=np.float64)
@@ -346,31 +419,23 @@ def precompute_edge_weights(G_sub, ideal_line, tangent_field, apex_points,
 
     # ── C_uturn: penalty for edges that reverse direction near non-apex areas ──
     near_apex = compute_uturn_mask(G_sub, midpoints, apex_points, apex_radius_m=15.0)
-    # Detect near-180° turns by checking if this edge doubles back
-    # We approximate: edges longer than 5m that point opposite to local tangent
     reverse_dev = np.abs(edge_bearings - local_tangents) % 360.0
     reverse_dev = np.where(reverse_dev > 180.0, 360.0 - reverse_dev, reverse_dev)
     is_reversal = reverse_dev > 150.0  # nearly opposite direction
-    c_uturn = np.where(is_reversal & ~near_apex, 2000.0, 0.0)
+    c_uturn = np.where(is_reversal & ~near_apex, 5000.0, 0.0)
 
-    # ── C_biomech: surface preference gradient ──
-    d_norm = np.clip(c_proximity / max(tube_radius_m, 1.0), 0.0, 1.0)
-    c_biomech = hw_mults * (1.0 + 2.0 * d_norm ** 2) * 10.0
-
-    # ── Composite weight ──
-    weights = (w_net * c_network +
-               w_prox * c_proximity +
-               w_head * c_heading +
-               w_uturn * c_uturn +
-               w_bio * c_biomech)
+    # ── v8.1 Multiplicative penalty field ──
+    # C = L × H × (1 + β·d²) + heading + uturn
+    base_cost = lengths * hw_mults * (1.0 + beta * c_proximity ** 2)
+    weights = base_cost + w_head * c_heading + w_uturn * c_uturn
 
     # Assign to graph edges
     for k, (u, v, data) in enumerate(edges):
         G_sub[u][v][list(G_sub[u][v].keys())[0]]['v8w'] = float(weights[k])
 
-    log(f"[v8-weights] Precomputed {n_edges} edge weights "
+    log(f"[v8.1-weights] Precomputed {n_edges} edge weights "
         f"(prox={c_proximity.mean():.0f}m, head={c_heading.mean():.0f}m, "
-        f"uturn={int(c_uturn.sum() > 0)} reversals)")
+        f"uturn={int(c_uturn.sum() > 0)} reversals, beta={beta})")
 
     return G_sub
 
@@ -636,15 +701,21 @@ class CoreRouter:
             max_radius_m=self.config.get('max_radius_m', 500),
         )
 
-        # Precompute edge weights
+        # v8.1: Tangent-prune perpendicular edges before weighting
+        if self.G_sub is not None and self.G_sub.number_of_edges() > 0:
+            self.G_sub = prune_perpendicular_edges(
+                self.G_sub, ideal_line, self.tangent_field,
+                max_deviation_deg=self.config.get('max_tangent_dev', 35.0),
+            )
+            self.kd_sub = _build_kdtree(self.G_sub)
+
+        # Precompute edge weights (v8.1 multiplicative formula)
         if self.G_sub is not None and self.G_sub.number_of_edges() > 0:
             precompute_edge_weights(
                 self.G_sub, ideal_line, self.tangent_field, self.apex_points,
-                w_net=self.config.get('w_net', 1.0),
-                w_prox=self.config.get('w_prox', 12.0),
                 w_head=self.config.get('w_head', 8.0),
                 w_uturn=self.config.get('w_uturn', 1.0),
-                w_bio=self.config.get('w_bio', 2.0),
+                beta=self.config.get('beta', 0.0003),
                 tube_radius_m=self.config.get('tube_radius_m', 300),
             )
 
@@ -692,11 +763,18 @@ class CoreRouter:
         return self._route_anchors()
 
     def _route_segments(self):
-        """Route by connecting sampled waypoints using bidirectional A*."""
+        """v8.1: Route with trunk-killer skip logic.
+
+        Evaluates each waypoint's detour cost vs skip cost.
+        Drops waypoints where detour/direct ratio > SKIP_THRESHOLD.
+        Caps skipping at 30% of waypoints.
+        """
         if self.kd_sub is None:
             return None
 
+        import networkx as nx
         tree, coords, nids = self.kd_sub
+        SKIP_THRESHOLD = 3.0
 
         # Sample ideal line for waypoints (not too dense)
         n_wps = min(25, max(8, len(self.il) // 2))
@@ -706,28 +784,90 @@ class CoreRouter:
         # Snap to nearest graph nodes
         _, indices = tree.query(wps_a)
         node_ids = [nids[i] for i in indices]
+        wp_coords = [wps[i] for i in range(len(wps))]
 
         # Deduplicate consecutive
-        deduped = [node_ids[0]]
-        for nid in node_ids[1:]:
-            if nid != deduped[-1]:
-                deduped.append(nid)
+        deduped_nids = [node_ids[0]]
+        deduped_coords = [wp_coords[0]]
+        for i in range(1, len(node_ids)):
+            if node_ids[i] != deduped_nids[-1]:
+                deduped_nids.append(node_ids[i])
+                deduped_coords.append(wp_coords[i])
 
-        if len(deduped) < 2:
+        if len(deduped_nids) < 2:
             return None
+
+        # ── Trunk-Killer: evaluate skip cost for each intermediate waypoint ──
+        max_skips = max(1, int(len(deduped_nids) * 0.3))
+        skip_set = set()
+
+        for i in range(1, len(deduped_nids) - 1):
+            if len(skip_set) >= max_skips:
+                break
+            prev_idx = i - 1
+            # Find previous non-skipped
+            while prev_idx in skip_set and prev_idx > 0:
+                prev_idx -= 1
+            next_idx = i + 1
+
+            # Direct distance from prev to next (geographic)
+            direct_dist = haversine(
+                deduped_coords[prev_idx][0], deduped_coords[prev_idx][1],
+                deduped_coords[next_idx][0], deduped_coords[next_idx][1]
+            )
+            if direct_dist < 10:
+                continue
+
+            # Detour distance via this waypoint
+            try:
+                path_a = nx.shortest_path(self.G_sub, deduped_nids[prev_idx],
+                                          deduped_nids[i], weight='v8w')
+                path_b = nx.shortest_path(self.G_sub, deduped_nids[i],
+                                          deduped_nids[next_idx], weight='v8w')
+                cost_via = sum(
+                    self.G_sub[path_a[j]][path_a[j+1]][list(self.G_sub[path_a[j]][path_a[j+1]].keys())[0]].get('v8w', 50)
+                    for j in range(len(path_a) - 1)
+                ) + sum(
+                    self.G_sub[path_b[j]][path_b[j+1]][list(self.G_sub[path_b[j]][path_b[j+1]].keys())[0]].get('v8w', 50)
+                    for j in range(len(path_b) - 1)
+                )
+            except (nx.NetworkXNoPath, nx.NodeNotFound):
+                skip_set.add(i)
+                continue
+
+            try:
+                path_direct = nx.shortest_path(self.G_sub, deduped_nids[prev_idx],
+                                               deduped_nids[next_idx], weight='v8w')
+                cost_direct = sum(
+                    self.G_sub[path_direct[j]][path_direct[j+1]][list(self.G_sub[path_direct[j]][path_direct[j+1]].keys())[0]].get('v8w', 50)
+                    for j in range(len(path_direct) - 1)
+                )
+            except (nx.NetworkXNoPath, nx.NodeNotFound):
+                continue
+
+            ratio = cost_via / max(cost_direct, 1.0)
+            if ratio > SKIP_THRESHOLD:
+                skip_set.add(i)
+                log(f"[v8.1-skip] Waypoint {i}: ratio={ratio:.1f} > {SKIP_THRESHOLD} — SKIPPED")
+
+        # Build final waypoint list (without skipped)
+        final_nids = [deduped_nids[i] for i in range(len(deduped_nids)) if i not in skip_set]
+        if len(final_nids) < 2:
+            final_nids = deduped_nids  # fallback to all
+
+        if skip_set:
+            log(f"[v8.1-skip] Skipped {len(skip_set)}/{len(deduped_nids)} waypoints")
 
         # Route segment by segment using bidirectional A*
         full = []
-        for i in range(len(deduped) - 1):
+        for i in range(len(final_nids) - 1):
             path = bidirectional_astar(
-                self.G_sub, deduped[i], deduped[i + 1],
+                self.G_sub, final_nids[i], final_nids[i + 1],
                 weight_attr='v8w', ideal_line=self.ideal_line
             )
             if path is None:
-                # Fallback to networkx shortest path
                 try:
-                    import networkx as nx
-                    path = nx.shortest_path(self.G_sub, deduped[i], deduped[i + 1],
+                    path = nx.shortest_path(self.G_sub, final_nids[i], final_nids[i + 1],
                                             weight='v8w')
                 except Exception:
                     continue
@@ -741,10 +881,10 @@ class CoreRouter:
         if self.is_closed and full and len(full) >= 3:
             if haversine(full[0][0], full[0][1], full[-1][0], full[-1][1]) > 30:
                 # Route back to start
-                start_node = deduped[0]
-                end_node = deduped[-1]
+                start_node = final_nids[-1]
+                end_node = final_nids[0]
                 path = bidirectional_astar(
-                    self.G_sub, end_node, start_node,
+                    self.G_sub, start_node, end_node,
                     weight_attr='v8w', ideal_line=self.ideal_line
                 )
                 if path:

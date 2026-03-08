@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Run2Art — Version History &amp; Changelog</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; color: #333; }
+        .header { background: linear-gradient(135deg, #2c3e50, #3498db); color: white; padding: 40px 20px; text-align: center; }
+        .header h1 { font-size: 2.2em; margin-bottom: 8px; }
+        .header p { font-size: 1.1em; opacity: 0.85; }
+        .container { max-width: 1100px; margin: 0 auto; padding: 30px 20px; }
+        .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 40px; }
+        .summary-card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); text-align: center; border-top: 4px solid #3498db; }
+        .summary-card.best { border-top-color: #2ecc71; }
+        .summary-card h3 { font-size: 1.8em; margin-bottom: 4px; }
+        .summary-card p { font-size: 0.85em; color: #777; }
+        .timeline { position: relative; padding-left: 40px; }
+        .timeline::before { content: ''; position: absolute; left: 18px; top: 0; bottom: 0; width: 3px; background: #ddd; }
+        .version-block { position: relative; margin-bottom: 40px; }
+        .version-block::before {
+            content: ''; position: absolute; left: -30px; top: 6px;
+            width: 16px; height: 16px; border-radius: 50%; border: 3px solid white;
+            box-shadow: 0 0 0 3px #3498db;
+        }
+        .version-block.v51::before { background: #e74c3c; box-shadow: 0 0 0 3px #e74c3c; }
+        .version-block.v60::before { background: #3498db; box-shadow: 0 0 0 3px #3498db; }
+        .version-block.v70::before { background: #f39c12; box-shadow: 0 0 0 3px #f39c12; }
+        .version-block.v80::before { background: #2ecc71; box-shadow: 0 0 0 3px #2ecc71; }
+        .version-block.v81::before { background: #9b59b6; box-shadow: 0 0 0 3px #9b59b6; }
+        .version-card { background: white; border-radius: 12px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        .version-card h2 { font-size: 1.5em; margin-bottom: 6px; display: flex; align-items: center; gap: 10px; }
+        .version-badge { font-size: 0.55em; padding: 3px 10px; border-radius: 20px; color: white; font-weight: 600; vertical-align: middle; }
+        .badge-v51 { background: #e74c3c; }
+        .badge-v60 { background: #3498db; }
+        .badge-v70 { background: #f39c12; }
+        .badge-v80 { background: #2ecc71; }
+        .badge-v81 { background: #9b59b6; }
+        .version-date { font-size: 0.85em; color: #999; margin-bottom: 12px; }
+        .version-card h3 { font-size: 1.05em; color: #555; margin: 14px 0 6px 0; }
+        .version-card ul { list-style: none; padding: 0; }
+        .version-card li { padding: 4px 0 4px 20px; position: relative; font-size: 0.93em; line-height: 1.5; }
+        .version-card li::before { content: '▸'; position: absolute; left: 0; color: #aaa; }
+        .change-add li::before { content: '+'; color: #2ecc71; font-weight: bold; }
+        .change-fix li::before { content: '✓'; color: #3498db; }
+        .change-perf li::before { content: '⚡'; }
+        .change-break li::before { content: '⚠'; color: #e67e22; }
+        .metrics-row { display: flex; gap: 15px; flex-wrap: wrap; margin-top: 12px; }
+        .metric { background: #f8f9fa; border-radius: 8px; padding: 10px 14px; font-size: 0.85em; }
+        .metric strong { display: block; font-size: 1.3em; }
+        .metric span { color: #888; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 0.9em; }
+        th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #eee; }
+        th { background: #f8f9fa; font-weight: 600; color: #555; }
+        tr:hover { background: #fafafa; }
+        .score-cell { font-weight: bold; }
+        .best-score { color: #2ecc71; }
+        .cost-formula { background: #f8f9fa; border-left: 4px solid #9b59b6; padding: 12px 16px; margin: 10px 0; border-radius: 0 8px 8px 0; font-family: 'Courier New', monospace; font-size: 0.9em; }
+        .nav-link { display: inline-block; margin-top: 20px; padding: 10px 20px; background: #3498db; color: white; text-decoration: none; border-radius: 8px; }
+        .nav-link:hover { background: #2980b9; }
+        .section-title { font-size: 1.4em; margin: 40px 0 15px 0; color: #2c3e50; border-bottom: 2px solid #eee; padding-bottom: 8px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Run2Art — Version History</h1>
+        <p>Complete changelog of engine evolution from v5.1 to v8.1</p>
+    </div>
+    <div class="container">
+        <!-- Summary Cards -->
+        <div class="summary-grid" id="summary-grid"></div>
+
+        <!-- Benchmark Comparison Table -->
+        <h2 class="section-title">Benchmark Results — Heart Shape, Reading UK</h2>
+        <table id="benchmark-table">
+            <thead><tr>
+                <th>Engine</th><th>Mode</th><th>Score (m)</th><th>Route Length</th><th>Time (s)</th><th>Rotation</th><th>Scale</th><th>Points</th>
+            </tr></thead>
+            <tbody id="benchmark-tbody"></tbody>
+        </table>
+
+        <a href="full_comparison_map.html" class="nav-link">View Routes on Map →</a>
+
+        <!-- Timeline -->
+        <h2 class="section-title" style="margin-top:50px;">Detailed Version Timeline</h2>
+        <div class="timeline">
+
+            <!-- V5.1 -->
+            <div class="version-block v51">
+                <div class="version-card">
+                    <h2><span class="version-badge badge-v51">v5.1</span> Vectorized Baseline</h2>
+                    <div class="version-date">Initial engine — Vectorization + Adaptive Densification</div>
+                    <h3>Architecture</h3>
+                    <ul>
+                        <li>Single-file engine with inline haversine/scoring</li>
+                        <li>Unidirectional A* on full OSMnx walk network</li>
+                        <li>6-component bidirectional scorer (forward + backward proximity)</li>
+                    </ul>
+                    <h3 class="change-add">Key Features</h3>
+                    <ul class="change-add">
+                        <li>Uniform densification at configurable spacing</li>
+                        <li>Adaptive densification: tighter on curves (based on turning angles)</li>
+                        <li>Vectorized haversine using NumPy (no per-point Python loops)</li>
+                        <li>Coarse grid search: rotation × scale × offset</li>
+                        <li>Shape-aware routing via <code>route_shape_aware()</code></li>
+                    </ul>
+                    <h3>Known Issues</h3>
+                    <ul>
+                        <li>No heading penalty — perpendicular roads freely used</li>
+                        <li>No corridor pruning — A* searches entire graph (~12K nodes)</li>
+                        <li>Occasional trunks from greedy waypoint snapping</li>
+                    </ul>
+                    <div class="metrics-row">
+                        <div class="metric"><strong>41.1m</strong> <span>Fit Score</span></div>
+                        <div class="metric"><strong>35.2m</strong> <span>Optimize Score</span></div>
+                        <div class="metric"><strong>70s / 146s</strong> <span>Fit / Optimize Time</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- V6.0 -->
+            <div class="version-block v60">
+                <div class="version-card">
+                    <h2><span class="version-badge badge-v60">v6.0</span> Segment-Constrained Tube Routing</h2>
+                    <div class="version-date">Curvature-based densification + Tube corridor</div>
+                    <h3>Changes from v5.1</h3>
+                    <ul class="change-add">
+                        <li><strong>Segment-constrained tube routing</strong>: routes each shape segment independently inside a tube corridor</li>
+                        <li><strong>Curvature-based densification</strong>: more points inserted at high-curvature areas</li>
+                        <li><strong>GeoPandas spatial index (sindex)</strong>: corridor pruning reduces graph to ~500 nodes</li>
+                        <li><strong>Adaptive tube radius</strong>: 100–500m based on node density</li>
+                        <li>Multi-objective weight function: shape deviation + road type</li>
+                    </ul>
+                    <h3>Architecture Changes</h3>
+                    <ul class="change-fix">
+                        <li>Extracted <code>routing.py</code> — graph fetching, corridor building, A* routing</li>
+                        <li>Extracted <code>geometry.py</code> — haversine, densification, sampling utilities</li>
+                        <li>Extracted <code>scoring.py</code> — 6-component bidirectional scorer</li>
+                        <li>Graph caching: memory + disk with MD5 keys</li>
+                    </ul>
+                    <h3>Known Issues</h3>
+                    <ul>
+                        <li>Occasional trunks from tube fragmentation in sparse areas</li>
+                        <li>Still no heading penalty — perpendicular edges unconstrained</li>
+                        <li>No U-turn control — 180° reversals anywhere on route</li>
+                    </ul>
+                    <div class="metrics-row">
+                        <div class="metric"><strong>44.8m</strong> <span>Fit Score</span></div>
+                        <div class="metric"><strong>42.2m</strong> <span>Optimize Score</span></div>
+                        <div class="metric"><strong>81s / 224s</strong> <span>Fit / Optimize Time</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- V7.0 -->
+            <div class="version-block v70">
+                <div class="version-card">
+                    <h2><span class="version-badge badge-v70">v7.0</span> Anchor-Point Routing</h2>
+                    <div class="version-date">Anchor waypoint strategy + Shape-aware infill</div>
+                    <h3>Changes from v6.0</h3>
+                    <ul class="change-add">
+                        <li><strong>Anchor-point routing</strong>: identifies high-curvature vertices and routes skeleton first</li>
+                        <li><strong>Corrective infill</strong>: detects >80m deviations and inserts corrective waypoints</li>
+                        <li><strong>Shape deviation weight</strong>: custom weight function penalizing distance from ideal</li>
+                        <li><strong>OSRM fallback</strong>: when osmnx unavailable, routes via OSRM API</li>
+                    </ul>
+                    <h3>Architecture Changes</h3>
+                    <ul class="change-fix">
+                        <li>3-tier fallback: anchors → shape-aware → basic graph routing → OSRM</li>
+                        <li>Anchor identification via turning-angle threshold (>30°)</li>
+                        <li>Refinement pass: re-route worst-deviation segments</li>
+                    </ul>
+                    <h3>The Problem That Emerged</h3>
+                    <ul class="change-break">
+                        <li><strong>"Trunk" spikes</strong>: hard waypoint snapping forces out-and-back detours</li>
+                        <li>Greedy anchor infill creates perpendicular spikes when no through-road exists</li>
+                        <li>No heading penalty → router cheerfully uses perpendicular roads</li>
+                        <li>No U-turn control → free 180° reversals produce visible artifacts</li>
+                    </ul>
+                    <div class="metrics-row">
+                        <div class="metric"><strong>50.0m</strong> <span>Fit Score</span></div>
+                        <div class="metric"><strong>44.1m</strong> <span>Optimize Score</span></div>
+                        <div class="metric"><strong>136s / 562s</strong> <span>Fit / Optimize Time</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- V8.0 -->
+            <div class="version-block v80">
+                <div class="version-card">
+                    <h2><span class="version-badge badge-v80">v8.0</span> Soft-Constraint Field (No-Trunk)</h2>
+                    <div class="version-date">Complete architectural refactor — CoreRouter + Fréchet scoring</div>
+                    <h3>Major Changes from v7.0</h3>
+                    <ul class="change-add">
+                        <li><strong>CoreRouter class</strong>: unified routing pipeline with soft-constraint edge weighting</li>
+                        <li><strong>5-component cost function</strong>: C = w_net·network + w_prox·proximity + w_head·heading + w_uturn·uturn + w_bio·biomech</li>
+                        <li><strong>Heading penalty</strong>: edges deviating >20° from local tangent are penalized (0–300m)</li>
+                        <li><strong>Apex sensitivity</strong>: U-turns only allowed within 15m of sharp vertices (bottom point, top dip)</li>
+                        <li><strong>Bidirectional A*</strong>: searches from both directions simultaneously (2× speedup)</li>
+                        <li><strong>Vectorized edge weights</strong>: one NumPy pass precomputes all edge costs (5-10× vs per-call)</li>
+                    </ul>
+                    <h3>Scoring Revolution</h3>
+                    <ul class="change-add">
+                        <li><strong>Discrete Fréchet distance</strong>: "dog-walker" metric replaces Hausdorff</li>
+                        <li><strong>Scale-invariant normalization</strong>: both polylines normalized to 1×1 box</li>
+                        <li><strong>Composite v8 score</strong>: 40% Fréchet + 20% coverage + 15% perpendicular + 15% heading + 10% length-ratio</li>
+                    </ul>
+                    <h3>New Files</h3>
+                    <ul class="change-fix">
+                        <li><code>core_router.py</code> — CoreRouter, heading penalty, U-turn mask, bidir A*, cycle finder</li>
+                        <li><code>scoring_v8.py</code> — discrete Fréchet, composite v8 score</li>
+                        <li><code>geometry.py</code> — tangent field, apex detection, normalize_to_unit_box</li>
+                    </ul>
+                    <h3>Cost Formula</h3>
+                    <div class="cost-formula">
+                        C(u,v) = 1.0·C_network + 12.0·C_proximity + 8.0·C_heading + 1.0·C_uturn + 2.0·C_biomech
+                    </div>
+                    <h3>Remaining Issues</h3>
+                    <ul class="change-break">
+                        <li>Additive cost formula: proximity penalty can be overcome by short edges</li>
+                        <li>No waypoint skip logic — all sampled waypoints are force-routed</li>
+                        <li>Heading cap at 300m — perpendicular edges still sometimes cheaper than alternative</li>
+                        <li>No Fréchet reject gate — poor routes pass silently</li>
+                    </ul>
+                    <div class="metrics-row">
+                        <div class="metric"><strong>73.0m</strong> <span>Fit Score</span></div>
+                        <div class="metric"><strong>74.0m</strong> <span>Optimize Score</span></div>
+                        <div class="metric"><strong>59s / 244s</strong> <span>Fit / Optimize Time</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- V8.1 -->
+            <div class="version-block v81">
+                <div class="version-card">
+                    <h2><span class="version-badge badge-v81">v8.1</span> Flow-Aware Router (Trunk-Killer)</h2>
+                    <div class="version-date">March 2026 — Multiplicative penalty field + Skip logic + Tangent pruning</div>
+                    <h3>Root Cause Analysis</h3>
+                    <ul>
+                        <li>v8.0's additive cost let short perpendicular edges "sneak through" the penalty</li>
+                        <li>Every sampled waypoint was force-routed — no mechanism to skip bad detours</li>
+                        <li>Heading penalty capped at 300m — still cheaper than some alternatives</li>
+                    </ul>
+                    <h3>AGENT 'GRAPH' — Routing Engine Changes</h3>
+                    <ul class="change-add">
+                        <li><strong>Multiplicative cost function</strong>: C = L × H × (1 + β·d²) + heading + uturn</li>
+                        <li><strong>Trunk-Killer skip logic</strong>: evaluates detour/direct cost ratio for each waypoint; skips if ratio > 3×</li>
+                        <li><strong>Heading penalty cap raised</strong>: 300m → 500m for perpendicular edges, with new 350m intermediate band</li>
+                        <li><strong>U-turn penalty raised</strong>: 2000m → 5000m for non-apex reversals</li>
+                        <li><strong>β = 0.0003</strong>: 100m deviation → 4× base cost; 200m → 13× base cost</li>
+                    </ul>
+                    <h3>AGENT 'SPATIAL' — Pre-processor Changes</h3>
+                    <ul class="change-add">
+                        <li><strong>Tangent pruning</strong>: removes edges deviating >35° from local ideal-line tangent (within 150m)</li>
+                        <li><strong>Connectivity-safe pruning</strong>: checks weak connectivity after pruning; reverts if too much damage</li>
+                        <li><strong>Iterative corridor widening</strong>: 100m steps up to 800m (was single jump to max_radius)</li>
+                    </ul>
+                    <h3>AGENT 'VISION' — Quality Gatekeeper</h3>
+                    <ul class="change-add">
+                        <li><strong>Fréchet reject gate</strong>: normalized Fréchet > 0.12 → score doubled → forces optimizer to pick different candidate</li>
+                        <li><strong>frechet_normalized()</strong>: new function returning unitless [0,1] Fréchet for gating</li>
+                        <li><strong>Shapely fast-path</strong>: tries shapely.hausdorff_distance (C-level) before NumPy fallback</li>
+                    </ul>
+                    <h3>New Cost Formula</h3>
+                    <div class="cost-formula">
+                        C(u,v) = L_edge × H_mult × (1 + 0.0003 × d_perp²) + 8.0 × heading_penalty + uturn_penalty<br>
+                        <br>
+                        Where d_perp = perpendicular distance to ideal centerline (metres)<br>
+                        At d=100m: multiplier = 4.0× | At d=200m: multiplier = 13.0× | At d=300m: multiplier = 28.0×
+                    </div>
+                    <h3>Skip Logic Detail</h3>
+                    <div class="cost-formula">
+                        For each waypoint W_i:<br>
+                        &nbsp;&nbsp;detour_cost = route_cost(W_{i-1} → W_i) + route_cost(W_i → W_{i+1})<br>
+                        &nbsp;&nbsp;direct_cost = route_cost(W_{i-1} → W_{i+1})<br>
+                        &nbsp;&nbsp;IF detour_cost / direct_cost > 3.0 THEN skip W_i<br>
+                        &nbsp;&nbsp;Max skips capped at 30% of waypoints
+                    </div>
+                    <div class="metrics-row">
+                        <div class="metric"><strong>74.3m</strong> <span>Fit Score</span></div>
+                        <div class="metric"><strong>73.3m</strong> <span>Optimize Score</span></div>
+                        <div class="metric"><strong>76s / 302s</strong> <span>Fit / Optimize Time</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Architecture Evolution -->
+        <h2 class="section-title">Architecture Evolution</h2>
+        <table>
+            <thead><tr><th>Aspect</th><th>v5.1</th><th>v6.0</th><th>v7.0</th><th>v8.0</th><th>v8.1</th></tr></thead>
+            <tbody>
+                <tr><td><strong>Densification</strong></td><td>Uniform</td><td>Curvature-based</td><td>Adaptive</td><td>Adaptive</td><td>Adaptive</td></tr>
+                <tr><td><strong>Routing</strong></td><td>Shape-aware A*</td><td>Segment-constrained tube</td><td>Anchor-point + infill</td><td>Soft-constraint field</td><td>Multiplicative penalty + skip</td></tr>
+                <tr><td><strong>Scoring</strong></td><td>6-component bidir</td><td>6-component bidir</td><td>6-component bidir</td><td>Fréchet-primary</td><td>Fréchet-primary + reject gate</td></tr>
+                <tr><td><strong>Edge Cost Model</strong></td><td>Distance only</td><td>Multi-objective</td><td>Shape-deviation</td><td>Additive 5-comp</td><td>Multiplicative β·d²</td></tr>
+                <tr><td><strong>Search</strong></td><td>Unidirectional A*</td><td>Unidirectional A*</td><td>Unidirectional A*</td><td>Bidirectional A*</td><td>Bidirectional A*</td></tr>
+                <tr><td><strong>Heading Penalty</strong></td><td>None</td><td>None</td><td>None</td><td>0–300m</td><td>0–500m + tangent pruning</td></tr>
+                <tr><td><strong>U-turn Control</strong></td><td>None</td><td>None</td><td>None</td><td>2000m non-apex</td><td>5000m non-apex</td></tr>
+                <tr><td><strong>Corridor</strong></td><td>Full graph</td><td>GeoPandas tube</td><td>GeoPandas tube</td><td>Adaptive wide-tube</td><td>Adaptive + tangent prune</td></tr>
+                <tr><td><strong>Trunk Prevention</strong></td><td>None</td><td>Partial</td><td>Corrective infill</td><td>Soft constraints</td><td>Skip logic + prune + β·d²</td></tr>
+                <tr><td><strong>Files</strong></td><td>1 (engine_v5.py)</td><td>4 (modular)</td><td>4 (modular)</td><td>6 (+ CoreRouter)</td><td>6 (upgraded)</td></tr>
+            </tbody>
+        </table>
+
+        <a href="full_comparison_map.html" class="nav-link">View All Routes on Map →</a>
+    </div>
+
+    <script>
+        async function loadData() {
+            let resp = await fetch('/full_comparison.json');
+            if (!resp.ok) resp = await fetch('full_comparison.json');
+            if (!resp.ok) return;
+            const data = await resp.json();
+            const routes = data.routes;
+
+            // Summary cards
+            const grid = document.getElementById('summary-grid');
+            const versions = ['v5.1', 'v6.0', 'v7.0', 'v8.0', 'v8.1'];
+            const colors = { 'v5.1': '#e74c3c', 'v6.0': '#3498db', 'v7.0': '#f39c12', 'v8.0': '#2ecc71', 'v8.1': '#9b59b6' };
+            
+            versions.forEach(ver => {
+                const fit = routes[`${ver}_fit`];
+                const opt = routes[`${ver}_optimize`];
+                const bestScore = Math.min(fit?.score || 1e9, opt?.score || 1e9);
+                const card = document.createElement('div');
+                card.className = 'summary-card';
+                card.style.borderTopColor = colors[ver];
+                card.innerHTML = `
+                    <p style="font-weight:600;color:${colors[ver]}">${ver}</p>
+                    <h3>${bestScore < 1e9 ? bestScore.toFixed(1) + 'm' : '—'}</h3>
+                    <p>Best Score</p>
+                `;
+                grid.appendChild(card);
+            });
+
+            // Benchmark table
+            const tbody = document.getElementById('benchmark-tbody');
+            const allKeys = ['v5.1_fit','v5.1_optimize','v6.0_fit','v6.0_optimize',
+                             'v7.0_fit','v7.0_optimize','v8.0_fit','v8.0_optimize',
+                             'v8.1_fit','v8.1_optimize'];
+            allKeys.forEach(key => {
+                const r = routes[key];
+                if (!r) return;
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><strong>${r.version}</strong></td>
+                    <td>${r.mode}</td>
+                    <td class="score-cell">${r.score?.toFixed(1) || '—'}m</td>
+                    <td>${r.route_length_m ? r.route_length_m.toFixed(0) + 'm' : '—'}</td>
+                    <td>${r.time_seconds?.toFixed(1) || '—'}</td>
+                    <td>${r.rotation != null ? r.rotation + '°' : '—'}</td>
+                    <td>${r.scale != null ? r.scale.toFixed(4) : '—'}</td>
+                    <td>${r.route?.length || '—'}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+        window.addEventListener('load', loadData);
+    </script>
+</body>
+</html>
