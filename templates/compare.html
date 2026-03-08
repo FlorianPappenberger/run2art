@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GPS Art - Engine Comparison</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+        }
+        #map {
+            height: 100vh;
+            width: 100%;
+        }
+        .legend {
+            background: white;
+            padding: 15px;
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            z-index: 1000;
+            border: 2px solid #333;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.3);
+        }
+        .legend h3 {
+            margin: 0 0 10px 0;
+            font-size: 16px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin: 5px 0;
+        }
+        .legend-color {
+            width: 30px;
+            height: 4px;
+            margin-right: 10px;
+        }
+        .legend-text {
+            font-size: 13px;
+        }
+        .info-box {
+            background: white;
+            padding: 15px;
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            border: 2px solid #333;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.3);
+            max-width: 300px;
+        }
+        .info-box h3 {
+            margin: 0 0 10px 0;
+            font-size: 16px;
+        }
+        .stat {
+            font-size: 12px;
+            margin: 3px 0;
+        }
+    </style>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+</head>
+<body>
+    <div id="map"></div>
+    <div class="legend">
+        <h3>Engine Comparison</h3>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #FF0000;"></div>
+            <div class="legend-text">v5.1 Quick Fit</div>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #0000FF;"></div>
+            <div class="legend-text">v6.0 Quick Fit</div>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #FF6600;"></div>
+            <div class="legend-text">v5.1 Auto-Optimize</div>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #00AA00;"></div>
+            <div class="legend-text">v6.0 Auto-Optimize</div>
+        </div>
+    </div>
+    <div class="info-box" id="info">
+        <h3>Loading...</h3>
+    </div>
+    <script>
+        const map = L.map('map').setView([51.4543, -0.9781], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        // Fetch comparison results
+        fetch('/api/comparison')
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    document.getElementById('info').innerHTML = '<h3>No Comparison Data</h3><p>' + data.error + '</p>';
+                    return;
+                }
+
+                const results = data.results;
+                const allBounds = [];
+
+                // Define colors for each route
+                const routeConfigs = [
+                    { data: results.quick_fit?.['v5.1'], color: '#FF0000', weight: 3, label: 'v5.1 Quick Fit', opacity: 0.7 },
+                    { data: results.quick_fit?.['v6.0'], color: '#0000FF', weight: 3, label: 'v6.0 Quick Fit', opacity: 0.7 },
+                    { data: results.auto_optimize?.['v5.1'], color: '#FF6600', weight: 3, label: 'v5.1 Auto-Optimize', opacity: 0.7 },
+                    { data: results.auto_optimize?.['v6.0'], color: '#00AA00', weight: 3, label: 'v6.0 Auto-Optimize', opacity: 0.7 }
+                ];
+
+                // Plot each route
+                routeConfigs.forEach(config => {
+                    if (config.data && config.data.route && config.data.route.length > 0) {
+                        const latlngs = config.data.route.map(pt => [pt[0], pt[1]]);
+                        const polyline = L.polyline(latlngs, { 
+                            color: config.color, 
+                            weight: config.weight,
+                            opacity: config.opacity
+                        }).addTo(map);
+                        
+                        polyline.bindPopup(`<b>${config.label}</b><br>
+                            Score: ${config.data.score?.toFixed(1) || 'N/A'}m<br>
+                            Length: ${config.data.route_length_m?.toFixed(0) || 'N/A'}m<br>
+                            Time: ${config.data.time_seconds?.toFixed(1) || 'N/A'}s`);
+                        
+                        allBounds.push(...latlngs);
+                    }
+                });
+
+                // Adjust map bounds to show all routes
+                if (allBounds.length > 0) {
+                    const bounds = L.latLngBounds(allBounds);
+                    map.fitBounds(bounds, { padding: [50, 50] });
+                }
+
+                // Update info box with comparison statistics
+                let infoHTML = '<h3>Comparison Results</h3>';
+                infoHTML += `<div class="stat"><b>Location:</b> ${data.location}</div>`;
+                infoHTML += `<div class="stat"><b>Shape:</b> ${data.shape}</div>`;
+                infoHTML += `<div class="stat"><b>Date:</b> ${data.comparison_date}</div>`;
+                
+                if (results.quick_fit) {
+                    const improvement = results.quick_fit.improvement_percent;
+                    infoHTML += `<hr><div class="stat"><b>Quick Fit Improvement:</b> ${improvement > 0 ? '+' : ''}${improvement?.toFixed(1) || 'N/A'}%</div>`;
+                }
+                
+                if (results.auto_optimize) {
+                    const improvement = results.auto_optimize.improvement_percent;
+                    infoHTML += `<div class="stat"><b>Auto-Optimize Improvement:</b> ${improvement > 0 ? '+' : ''}${improvement?.toFixed(1) || 'N/A'}%</div>`;
+                }
+                
+                document.getElementById('info').innerHTML = infoHTML;
+            })
+            .catch(err => {
+                console.error('Error loading comparison:', err);
+                document.getElementById('info').innerHTML = '<h3>Error</h3><p>Failed to load comparison data</p>';
+            });
+    </script>
+</body>
+</html>

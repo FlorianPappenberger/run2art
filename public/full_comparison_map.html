@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Full Engine Comparison Map</title>
+    <style>
+        body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+        #map { height: 100vh; width: 100%; }
+        .legend {
+            background: white; padding: 15px; position: absolute; top: 10px; right: 10px;
+            z-index: 1000; border: 2px solid #ccc; border-radius: 5px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3); max-width: 300px;
+        }
+        .legend h3 { margin: 0 0 8px 0; font-size: 15px; }
+        .legend-section { margin: 8px 0 4px 0; font-weight: bold; font-size: 12px; color: #555; border-top: 1px solid #eee; padding-top: 6px; }
+        .legend-item { margin: 3px 0; display: flex; align-items: center; font-size: 13px; }
+        .legend-line { width: 30px; height: 0; margin-right: 8px; display: inline-block; flex-shrink: 0; }
+        .legend-label { flex: 1; }
+        .legend-score { font-size: 11px; color: #666; margin-left: 5px; font-weight: bold; }
+        .legend-toggle { cursor: pointer; user-select: none; }
+        .legend-toggle:hover { background: #f5f5f5; }
+        .legend-toggle input { margin-right: 4px; }
+    </style>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+</head>
+<body>
+    <div id="map"></div>
+    <div class="legend" id="legend">
+        <h3>Engine Comparison</h3>
+        <div style="font-size: 11px; color: #888; margin-bottom: 8px;">Heart Shape &bull; Reading, UK</div>
+        <div id="legend-items"></div>
+    </div>
+    <script>
+        const map = L.map('map').setView([51.4543, -0.9781], 14);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        // Color & style config per route key
+        const config = {
+            'v5.1_fit':      { color: '#e74c3c', dash: null,     weight: 4, label: 'v5.1 Fit' },
+            'v5.1_optimize': { color: '#c0392b', dash: '10, 6',  weight: 4, label: 'v5.1 Optimize' },
+            'v6.0_fit':      { color: '#3498db', dash: null,     weight: 4, label: 'v6.0 Fit' },
+            'v6.0_optimize': { color: '#2471a3', dash: '10, 6',  weight: 4, label: 'v6.0 Optimize' },
+            'v7.0_fit':      { color: '#f39c12', dash: null,     weight: 5, label: 'v7.0 Fit' },
+            'v7.0_optimize': { color: '#d4ac0d', dash: '10, 6',  weight: 5, label: 'v7.0 Optimize' },
+            'v8.0_fit':      { color: '#2ecc71', dash: null,     weight: 5, label: 'v8.0 Fit' },
+            'v8.0_optimize': { color: '#27ae60', dash: '10, 6',  weight: 5, label: 'v8.0 Optimize' },
+        };
+
+        const layers = {};
+        const allBounds = [];
+
+        function buildLegend(routes) {
+            const container = document.getElementById('legend-items');
+            const modes = ['fit', 'optimize'];
+            
+            modes.forEach(mode => {
+                const div = document.createElement('div');
+                div.className = 'legend-section';
+                div.textContent = mode === 'fit' ? 'Quick Fit' : 'Auto-Optimize';
+                container.appendChild(div);
+
+                ['v5.1', 'v6.0', 'v7.0', 'v8.0'].forEach(ver => {
+                    const key = `${ver}_${mode}`;
+                    const cfg = config[key];
+                    const data = routes[key];
+                    if (!cfg) return;
+
+                    const item = document.createElement('label');
+                    item.className = 'legend-item legend-toggle';
+
+                    const cb = document.createElement('input');
+                    cb.type = 'checkbox';
+                    cb.checked = true;
+                    cb.addEventListener('change', () => {
+                        if (layers[key]) {
+                            if (cb.checked) map.addLayer(layers[key]);
+                            else map.removeLayer(layers[key]);
+                        }
+                    });
+
+                    const line = document.createElement('span');
+                    line.className = 'legend-line';
+                    line.style.borderTop = `${cfg.weight}px ${cfg.dash ? 'dashed' : 'solid'} ${cfg.color}`;
+
+                    const label = document.createElement('span');
+                    label.className = 'legend-label';
+                    label.textContent = cfg.label;
+
+                    const score = document.createElement('span');
+                    score.className = 'legend-score';
+                    score.textContent = data ? `${data.score.toFixed(1)}m` : '—';
+
+                    item.appendChild(cb);
+                    item.appendChild(line);
+                    item.appendChild(label);
+                    item.appendChild(score);
+                    container.appendChild(item);
+                });
+            });
+        }
+
+        function plotRoute(key, data) {
+            const cfg = config[key];
+            if (!cfg || !data.route || data.route.length === 0) return;
+
+            const latlngs = data.route.map(pt => [pt[0], pt[1]]);
+
+            const polyline = L.polyline(latlngs, {
+                color: cfg.color,
+                weight: cfg.weight,
+                opacity: 0.8,
+                dashArray: cfg.dash,
+                smoothFactor: 1
+            });
+            polyline.addTo(map);
+
+            polyline.bindPopup(`
+                <b>${cfg.label}</b><br>
+                Score: ${data.score?.toFixed(1) || '?'}m<br>
+                Route: ${data.route_length_m ? data.route_length_m.toFixed(0) + 'm' : 'N/A'}<br>
+                Time: ${data.time_seconds?.toFixed(1) || '?'}s<br>
+                Rotation: ${data.rotation != null ? data.rotation + '&deg;' : 'N/A'}<br>
+                Scale: ${data.scale != null ? data.scale.toFixed(4) : 'N/A'}<br>
+                Points: ${data.route.length}
+            `);
+
+            layers[key] = polyline;
+            allBounds.push(...latlngs);
+        }
+
+        async function init() {
+            let resp = await fetch('/full_comparison.json');
+            if (!resp.ok) resp = await fetch('full_comparison.json');
+            if (!resp.ok) { alert('full_comparison.json not found – run full_comparison.py first'); return; }
+            const data = await resp.json();
+            const routes = data.routes;
+
+            // Plot order: fit first (underneath), optimize on top; v7 last so on top
+            const plotOrder = [
+                'v5.1_fit', 'v6.0_fit', 'v7.0_fit', 'v8.0_fit',
+                'v5.1_optimize', 'v6.0_optimize', 'v7.0_optimize', 'v8.0_optimize'
+            ];
+            plotOrder.forEach(key => { if (routes[key]) plotRoute(key, routes[key]); });
+
+            buildLegend(routes);
+
+            if (allBounds.length > 0) {
+                map.fitBounds(L.latLngBounds(allBounds), { padding: [50, 50] });
+            }
+        }
+
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>

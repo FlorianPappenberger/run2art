@@ -3,9 +3,36 @@ import math
 import time
 from datetime import datetime
 from engine import mode_fit, mode_optimize
+import os
 
 CENTER = [51.4543, -0.9781]
 
+# Check if benchmark results already exist
+benchmark_path = "public/benchmark_results.json"
+if os.path.exists(benchmark_path):
+    with open(benchmark_path, "r") as f:
+        try:
+            benchmark = json.load(f)
+            print("Loaded existing benchmark results.")
+        except json.JSONDecodeError:
+            print("Existing benchmark file is corrupted. Starting fresh.")
+            benchmark = None
+else:
+    benchmark = None
+
+# Initialize benchmark structure if not loaded
+if not benchmark:
+    benchmark = {
+        "location": "Reading, UK",
+        "center": CENTER,
+        "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "fit": [],
+        "optimize": [],
+        "best_shape": None,
+        "summary": {}
+    }
+
+# Move parametric_heart function above HEART_SHAPE initialization
 
 def parametric_heart(n=50):
     """Generate a smooth heart using the parametric equation:
@@ -41,8 +68,8 @@ payload = {
     "center_point": CENTER
 }
 
-if __name__ == "__main__":
-    # --- Quick Fit ---
+# --- Quick Fit ---
+if not benchmark["fit"]:
     print("Running Quick Fit...")
     t0 = time.time()
     fit_result = mode_fit(payload)
@@ -53,8 +80,12 @@ if __name__ == "__main__":
     fit_result["global_shape_index"] = 0
     fit_score = fit_result.get("score", 0)
     print(f"  Quick Fit done: score={fit_score}m, time={fit_time:.1f}s")
+    benchmark["fit"].append(fit_result)
+else:
+    print("Quick Fit results already available. Skipping.")
 
-    # --- Auto-Optimize ---
+# --- Auto-Optimize ---
+if not benchmark["optimize"]:
     print("Running Auto-Optimize...")
     t0 = time.time()
     opt_result = mode_optimize(payload)
@@ -65,40 +96,34 @@ if __name__ == "__main__":
     opt_result["global_shape_index"] = 0
     opt_score = opt_result.get("score", 0)
     print(f"  Auto-Optimize done: score={opt_score}m, time={opt_time:.1f}s")
+    benchmark["optimize"].append(opt_result)
+else:
+    print("Auto-Optimize results already available. Skipping.")
 
-    # Build full benchmark structure
-    benchmark = {
-        "location": "Reading, UK",
-        "center": CENTER,
-        "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "fit": [fit_result],
-        "optimize": [opt_result],
-        "best_shape": None,
-        "summary": {
-            "fit_count": 1,
-            "fit_success": 1 if "error" not in fit_result else 0,
-            "fit_avg_score": fit_score,
-            "fit_best_score": fit_score,
-            "fit_worst_score": fit_score,
-            "fit_avg_time": round(fit_time, 1),
-            "fit_total_time": round(fit_time, 1),
-            "opt_count": 1,
-            "opt_success": 1 if "error" not in opt_result else 0,
-            "opt_avg_score": opt_score,
-            "opt_best_score": opt_score,
-            "opt_worst_score": opt_score,
-            "opt_avg_time": round(opt_time, 1),
-            "opt_total_time": round(opt_time, 1),
-            "best_shape_name": None,
-            "best_shape_score": None,
-            "best_shape_time": None,
-            "status": "complete"
-        }
-    }
+# Update summary
+benchmark["summary"].update({
+    "fit_count": len(benchmark["fit"]),
+    "fit_success": sum(1 for r in benchmark["fit"] if "error" not in r),
+    "fit_avg_score": sum(r.get("score", 0) for r in benchmark["fit"]) / len(benchmark["fit"]),
+    "fit_best_score": min(r.get("score", float("inf")) for r in benchmark["fit"]),
+    "fit_worst_score": max(r.get("score", 0) for r in benchmark["fit"]),
+    "fit_avg_time": sum(r.get("time_seconds", 0) for r in benchmark["fit"]) / len(benchmark["fit"]),
+    "fit_total_time": sum(r.get("time_seconds", 0) for r in benchmark["fit"]),
+    "opt_count": len(benchmark["optimize"]),
+    "opt_success": sum(1 for r in benchmark["optimize"] if "error" not in r),
+    "opt_avg_score": sum(r.get("score", 0) for r in benchmark["optimize"]) / len(benchmark["optimize"]),
+    "opt_best_score": min(r.get("score", float("inf")) for r in benchmark["optimize"]),
+    "opt_worst_score": max(r.get("score", 0) for r in benchmark["optimize"]),
+    "opt_avg_time": sum(r.get("time_seconds", 0) for r in benchmark["optimize"]) / len(benchmark["optimize"]),
+    "opt_total_time": sum(r.get("time_seconds", 0) for r in benchmark["optimize"]),
+})
 
-    with open("public/benchmark_results.json", "w") as f:
-        json.dump(benchmark, f)
+# Save updated benchmark
+with open(benchmark_path, "w") as f:
+    json.dump(benchmark, f)
 
-    print(f"\nBenchmark written to public/benchmark_results.json")
-    print(f"  Quick Fit:     score={fit_score}m, time={fit_time:.1f}s")
-    print(f"  Auto-Optimize: score={opt_score}m, time={opt_time:.1f}s")
+print(f"\nBenchmark written to {benchmark_path}")
+if benchmark["fit"]:
+    print(f"  Quick Fit:     score={benchmark['fit'][0].get('score', 0)}m, time={benchmark['fit'][0].get('time_seconds', 0):.1f}s")
+if benchmark["optimize"]:
+    print(f"  Auto-Optimize: score={benchmark['optimize'][0].get('score', 0)}m, time={benchmark['optimize'][0].get('time_seconds', 0):.1f}s")

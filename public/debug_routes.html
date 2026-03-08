@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Route Debug</title>
+    <style>
+        body { font-family: monospace; padding: 20px; }
+        pre { background: #f5f5f5; padding: 10px; }
+    </style>
+</head>
+<body>
+    <h1>Route Debug Info</h1>
+    <div id="output"></div>
+    <script>
+        fetch('/all_versions_comparison.json')
+            .then(r => r.json())
+            .then(data => {
+                const output = document.getElementById('output');
+                
+                output.innerHTML = '<h2>Data loaded successfully</h2>';
+                
+                for (const key in data.versions) {
+                    const v = data.versions[key];
+                    const version = v.version || key;
+                    
+                    output.innerHTML += `
+                        <h3>${version} (${key})</h3>
+                        <ul>
+                            <li>Score: ${v.score}m</li>
+                            <li>Route points: ${v.route ? v.route.length : 0}</li>
+                            <li>Time: ${v.time_seconds}s</li>
+                            <li>Rotation: ${v.rotation}°</li>
+                            <li>Scale: ${v.scale}</li>
+                            <li>First point: ${v.route && v.route[0] ? JSON.stringify(v.route[0]) : 'N/A'}</li>
+                            <li>Last point: ${v.route && v.route.length > 0 ? JSON.stringify(v.route[v.route.length - 1]) : 'N/A'}</li>
+                        </ul>
+                    `;
+                }
+            })
+            .catch(err => {
+                document.getElementById('output').innerHTML = 
+                    `<p style="color: red;">Error: ${err.message}</p>`;
+            });
+    </script>
+</body>
+</html>

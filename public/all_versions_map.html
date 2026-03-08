@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Engine Comparison Map - All Versions</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        #map {
+            height: 100vh;
+            width: 100%;
+        }
+        .legend {
+            background: white;
+            padding: 15px;
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 1000;
+            border: 2px solid #ccc;
+            border-radius: 5px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+            max-width: 250px;
+        }
+        .legend h3 {
+            margin: 0 0 10px 0;
+            font-size: 16px;
+        }
+        .legend-item {
+            margin: 5px 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .legend-color {
+            width: 30px;
+            height: 3px;
+            margin-right: 8px;
+            display: inline-block;
+        }
+        .legend-label {
+            flex: 1;
+        }
+        .legend-score {
+            font-size: 11px;
+            color: #666;
+            margin-left: 5px;
+        }
+    </style>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+</head>
+<body>
+    <div id="map"></div>
+    <div class="legend">
+        <h3>🏃 Engine Comparison</h3>
+        <div class="legend-item">
+            <span class="legend-color" style="background-color: #e74c3c; height: 4px;"></span>
+            <span class="legend-label">v5.1 (Baseline)</span>
+            <span class="legend-score" id="v51-score">-</span>
+        </div>
+        <div class="legend-item">
+            <span class="legend-color" style="background-color: #3498db; height: 4px;"></span>
+            <span class="legend-label">v6.0 (Segment)</span>
+            <span class="legend-score" id="v60-score">-</span>
+        </div>
+        <div class="legend-item">
+            <span class="legend-color" style="background-color: #FFD700; height: 4px;"></span>
+            <span class="legend-label">v7.0 (Refactored)</span>
+            <span class="legend-score" id="v70-score">-</span>
+        </div>
+        <div style="margin-top: 12px; padding-top: 8px; border-top: 1px solid #eee; font-size: 11px; color: #666;">
+            📍 Reading, UK<br>
+            ❤️ Heart Shape (Parametric)
+        </div>
+    </div>
+    <script>
+        // Initialize map
+        const map = L.map('map').setView([51.4543, -0.9781], 14);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        const colors = {
+            'v5.1': '#e74c3c',  // Red
+            'v6.0': '#3498db',  // Blue
+            'v7.0': '#FFD700'   // Gold/Yellow - very visible
+        };
+
+        const allBounds = [];
+
+        // Try to load from different possible sources
+        const sources = [
+            '/engine_comparison.json',
+            '/all_versions_comparison.json',
+            '/quick_multi_comparison.json'
+        ];
+
+        let dataLoaded = false;
+
+        async function tryLoadData() {
+            for (const source of sources) {
+                try {
+                    const response = await fetch(source);
+                    if (!response.ok) continue;
+                    
+                    const data = await response.json();
+                    console.log(`Loaded data from ${source}:`, data);
+                    
+                    // Handle engine_comparison.json format
+                    if (data.results && data.results.quick_fit) {
+                        const qf = data.results.quick_fit;
+                        
+                        // v5.1
+                        if (qf['v5.1'] && qf['v5.1'].route && qf['v5.1'].route.length > 0) {
+                            plotRoute('v5.1', qf['v5.1']);
+                            document.getElementById('v51-score').textContent = 
+                                `${qf['v5.1'].score?.toFixed(1) || '?'}m`;
+                        }
+                        
+                        // v6.0
+                        if (qf['v6.0'] && qf['v6.0'].route && qf['v6.0'].route.length > 0) {
+                            plotRoute('v6.0', qf['v6.0']);
+                            document.getElementById('v60-score').textContent = 
+                                `${qf['v6.0'].score?.toFixed(1) || '?'}m`;
+                        }
+                        
+                        dataLoaded = true;
+                        break;
+                    }
+                    
+                    // Handle all_versions_comparison.json format
+                    if (data.versions) {
+                        // Plot in specific order so v7.0 is on top
+                        const plotOrder = ['v5.1_fit', 'v6.0_fit', 'v7.0_fit'];
+                        
+                        plotOrder.forEach(key => {
+                            if (data.versions[key]) {
+                                const versionData = data.versions[key];
+                                if (versionData.route && versionData.route.length > 0) {
+                                    const version = versionData.version || key.split('_')[0];
+                                    plotRoute(version, versionData);
+                                    
+                                    if (version === 'v5.1') {
+                                        document.getElementById('v51-score').textContent = 
+                                            `${versionData.score?.toFixed(1) || '?'}m`;
+                                    } else if (version === 'v6.0') {
+                                        document.getElementById('v60-score').textContent = 
+                                            `${versionData.score?.toFixed(1) || '?'}m`;
+                                    } else if (version === 'v7.0') {
+                                        document.getElementById('v70-score').textContent = 
+                                            `${versionData.score?.toFixed(1) || '?'}m`;
+                                    }
+                                }
+                            }
+                        });
+                        
+                        dataLoaded = true;
+                        break;
+                    }
+                    
+                } catch (err) {
+                    console.log(`Could not load ${source}:`, err);
+                }
+            }
+            
+            if (!dataLoaded) {
+                alert('No comparison data found. Please run a comparison script first.');
+            } else {
+                // Fit map to show all routes
+                if (allBounds.length > 0) {
+                    const bounds = L.latLngBounds(allBounds);
+                    map.fitBounds(bounds, { padding: [50, 50] });
+                }
+            }
+        }
+
+        function plotRoute(version, data) {
+            const latlngs = data.route.map(pt => [pt[0], pt[1]]);
+            const color = colors[version] || '#999';
+            
+            console.log(`Plotting ${version}:`, {
+                points: latlngs.length,
+                color: color,
+                score: data.score
+            });
+            
+            // Different styles for better visibility
+            const styles = {
+                'v5.1': { weight: 5, opacity: 0.6, dashArray: null },
+                'v6.0': { weight: 5, opacity: 0.6, dashArray: null },
+                'v7.0': { weight: 8, opacity: 0.95, dashArray: null }  // Even thicker and more opaque
+            };
+            
+            const style = styles[version] || { weight: 4, opacity: 0.7, dashArray: null };
+            
+            const polyline = L.polyline(latlngs, {
+                color: color,
+                weight: style.weight,
+                opacity: style.opacity,
+                dashArray: style.dashArray,
+                smoothFactor: 1
+            }).addTo(map);
+            
+            console.log(`${version} polyline added to map`);
+            
+            polyline.bindPopup(`
+                <b>${version}</b><br>
+                Score: ${data.score?.toFixed(1) || 'N/A'}m<br>
+                Route Length: ${data.route_length_m?.toFixed(0) || 'N/A'}m<br>
+                Time: ${data.time_seconds?.toFixed(1) || '?'}s<br>
+                Rotation: ${data.rotation !== undefined ? data.rotation + '°' : 'N/A'}<br>
+                Scale: ${data.scale !== undefined ? data.scale.toFixed(4) : 'N/A'}
+            `);
+            
+            allBounds.push(...latlngs);
+        }
+
+        // Load data on page load
+        window.addEventListener('load', tryLoadData);
+    </script>
+</body>
+</html>

@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GPS Art Map</title>
+    <style>
+        #map {
+            height: 100vh;
+            width: 100%;
+        }
+        .legend {
+            background: white;
+            padding: 10px;
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            z-index: 1000;
+            border: 1px solid #ccc;
+        }
+    </style>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <div id="map"></div>
+    <div class="legend">
+        <strong>Legend:</strong>
+        <ul>
+            <li style="color: red;">● Quick Fit Mode</li>
+            <li style="color: green;">● Auto-Optimize Mode</li>
+            <li style="color: blue;">● Best Shape</li>
+        </ul>
+    </div>
+    <script>
+        const map = L.map('map').setView([51.4543, -0.9781], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        // Fetch benchmark results
+        fetch('/benchmark_results.json')
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert(data.error);
+                    return;
+                }
+
+                // Plot routes with different colors
+                const colors = {
+                    fit: '#FF0000',      // Red
+                    optimize: '#00AA00', // Green
+                    best_shape: '#0000FF' // Blue
+                };
+
+                const allBounds = [];
+
+                Object.keys(colors).forEach(key => {
+                    if (data[key]) {
+                        const routes = Array.isArray(data[key]) ? data[key] : [data[key]];
+                        routes.forEach((route, index) => {
+                            if (route.route && route.route.length > 0) {
+                                const latlngs = route.route.map(pt => [pt[0], pt[1]]);
+                                const polyline = L.polyline(latlngs, { 
+                                    color: colors[key], 
+                                    weight: 3,
+                                    opacity: 0.7 
+                                }).addTo(map);
+                                
+                                polyline.bindPopup(`<b>${key.toUpperCase()}</b><br>
+                                    Score: ${route.score?.toFixed(1) || 'N/A'}m<br>
+                                    Length: ${route.route_length_m?.toFixed(0) || 'N/A'}m<br>
+                                    Mode: ${route.mode || 'N/A'}`);
+                                
+                                allBounds.push(...latlngs);
+                            }
+                        });
+                    }
+                });
+
+                // Adjust map bounds
+                if (allBounds.length > 0) {
+                    const bounds = L.latLngBounds(allBounds);
+                    map.fitBounds(bounds, { padding: [50, 50] });
+                }
+            })
+            .catch(err => console.error('Error loading results:', err));
+    </script>
+</body>
+</html>
