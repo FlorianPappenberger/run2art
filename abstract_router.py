@@ -242,6 +242,111 @@ class SymmetryScorer:
         mean_deg = (dists_lr.mean() + dists_rl.mean()) / 2.0
         return float(mean_deg * 111_000.0)
 
+    def verticality_penalty(self, route_pts):
+        """Cusp-to-Apex verticality constraint.
+
+        Ensures the route's topmost point is near the cusp and the
+        bottommost point is near the apex. Both lobes must share
+        a common top-center origin (cusp) and bottom-center
+        terminus (apex).
+
+        Returns penalty in metres (0 = perfect vertical alignment).
+        """
+        pts = np.asarray(route_pts, dtype=np.float64)
+        if len(pts) < 4:
+            return 500.0
+
+        cusp = self.landmarks.get('cusp')
+        apex = self.landmarks.get('apex')
+        if cusp is None or apex is None:
+            return 0.0
+
+        cusp_c = np.array(cusp['coord'], dtype=np.float64)
+        apex_c = np.array(apex['coord'], dtype=np.float64)
+
+        # 1. Route topmost point should be near cusp
+        top_idx = int(np.argmax(pts[:, 0]))  # max latitude
+        top_dist = haversine(pts[top_idx, 0], pts[top_idx, 1],
+                             cusp_c[0], cusp_c[1])
+
+        # 2. Route bottommost point should be near apex
+        bot_idx = int(np.argmin(pts[:, 0]))  # min latitude
+        bot_dist = haversine(pts[bot_idx, 0], pts[bot_idx, 1],
+                             apex_c[0], apex_c[1])
+
+        # 3. Start/end of route should be near cusp (closed loop originates there)
+        start_to_cusp = haversine(pts[0, 0], pts[0, 1],
+                                  cusp_c[0], cusp_c[1])
+        end_to_cusp = haversine(pts[-1, 0], pts[-1, 1],
+                                cusp_c[0], cusp_c[1])
+        origin_dist = min(start_to_cusp, end_to_cusp)
+
+        # 4. Cusp-to-apex axis should be roughly vertical
+        #    (latitude change should dominate longitude change)
+        axis_dlat = abs(cusp_c[0] - apex_c[0])
+        axis_dlng = abs(cusp_c[1] - apex_c[1])
+        axis_len = axis_dlat + axis_dlng
+        if axis_len > 0:
+            verticality_ratio = axis_dlat / axis_len  # 1.0 = perfectly vertical
+        else:
+            verticality_ratio = 0.0
+        # Penalty if axis isn't vertical enough (ratio < 0.6)
+        tilt_penalty = max(0.0, (0.6 - verticality_ratio)) * 300.0
+
+        penalty = top_dist + bot_dist + origin_dist * 0.5 + tilt_penalty
+        return float(min(penalty, 500.0))
+
+    def curvature_penalty(self, route_pts):
+        """Curvature consistency penalty — prevents flattening into a rectangle.
+
+        Compares the curvature profile of the route against the ideal.
+        A heart has strong curvature in the lobes and at the apex;
+        a flattened shape (rectangle/diamond) will have near-zero
+        curvature almost everywhere.
+
+        Returns penalty in [0, 500] where 0 = curvature profiles match.
+        """
+        r_pts = sample_polyline(route_pts, 40)
+        i_pts = sample_polyline(self.ideal_pts.tolist(), 40)
+
+        r_curv = np.abs(_curvature_at_points(r_pts))
+        i_curv = np.abs(_curvature_at_points(i_pts))
+
+        if len(r_curv) < 5 or len(i_curv) < 5:
+            return 250.0
+
+        # Interior curvatures only (skip endpoints)
+        rc = r_curv[1:-1]
+        ic = i_curv[1:-1]
+
+        r_mean = float(rc.mean())
+        i_mean = float(ic.mean())
+        r_std = float(rc.std()) + 1e-6
+        i_std = float(ic.std()) + 1e-6
+
+        # Flatness check: if route mean curvature < 40% of ideal, heavy penalty
+        if i_mean > 1.0 and r_mean < i_mean * 0.4:
+            flatness = (i_mean - r_mean) / i_mean * 400.0
+        else:
+            flatness = 0.0
+
+        # Distribution mismatch: std ratio
+        ratio_std = max(r_std / i_std, i_std / r_std)
+        ratio_mean = max(r_mean / (i_mean + 1e-6), i_mean / (r_mean + 1e-6))
+        dist_penalty = (ratio_std - 1.0) * 25.0 + (ratio_mean - 1.0) * 20.0
+
+        # Peak curvature check: route should have at least 2 high-curvature
+        # zones (the two lobe arcs). Count points > 50% of ideal peak.
+        i_peak = float(ic.max())
+        if i_peak > 5.0:
+            n_high_route = int(np.sum(rc > i_peak * 0.4))
+            # Ideal has ~2 lobe peaks; if route has 0, that's a rectangle
+            if n_high_route < 2:
+                dist_penalty += (2 - n_high_route) * 80.0
+
+        penalty = flatness + dist_penalty
+        return float(min(max(penalty, 0.0), 500.0))
+
     def trunk_penalty(self, route_pts):
         """Detect out-and-back spikes (trunks) and penalise.
 
@@ -288,9 +393,11 @@ class SymmetryScorer:
         """Full symmetry-based score.
 
         Components (lower = better):
-          Mirror error          40%  — bilateral symmetry fidelity
-          Trunk penalty         25%  — out-and-back spike cost
-          Turning-angle Frechet 20%  — shape grammar fidelity
+          Mirror error          25%  — bilateral symmetry fidelity
+          Verticality           15%  — cusp-to-apex alignment
+          Curvature penalty     15%  — prevents flattening
+          Trunk penalty         15%  — out-and-back spike cost
+          Turning-angle Frechet 15%  — shape grammar fidelity
           Spatial Frechet       15%  — geometric grounding
 
         Returns float in ~metre-like units.
@@ -302,6 +409,12 @@ class SymmetryScorer:
         m_err = self.mirror_error(route_pts)
         m_score = min(m_err, 500.0)
 
+        v_pen = self.verticality_penalty(route_pts)
+        v_score = min(v_pen, 500.0)
+
+        c_pen = self.curvature_penalty(route_pts)
+        c_score = min(c_pen, 500.0)
+
         t_pen = self.trunk_penalty(route_pts)
         t_score = min(t_pen, 5000.0)
 
@@ -311,12 +424,15 @@ class SymmetryScorer:
         sp_fd = frechet_score(route_pts, self.ideal_pts.tolist())
         sp_score = min(sp_fd, 300.0)
 
-        composite = (m_score * 0.40 +
-                     t_score * 0.25 +
-                     ta_score * 0.20 +
+        composite = (m_score * 0.25 +
+                     v_score * 0.15 +
+                     c_score * 0.15 +
+                     t_score * 0.15 +
+                     ta_score * 0.15 +
                      sp_score * 0.15)
 
-        log(f"[sym-scorer] mirror={m_score:.1f}m trunk={t_score:.1f} "
+        log(f"[sym-scorer] mirror={m_score:.1f}m vert={v_score:.1f} "
+            f"curv={c_score:.1f} trunk={t_score:.1f} "
             f"ta_fd={ta_score:.1f} spatial={sp_score:.1f} -> {composite:.1f}")
 
         return composite
@@ -684,14 +800,21 @@ def _cycle_search(G_sub, ideal_line, landmarks, kd_data, weight_attr='absw'):
 
     Finds cycles in the corridor graph and selects the one with
     best symmetry vs the ideal shape.
+
+    Skipped for large graphs (>400 nodes) because minimum_cycle_basis
+    is O(E · V²) and dominates benchmark time.
     """
     import networkx as nx
 
     if kd_data is None:
         return None
 
+    n_nodes = G_sub.number_of_nodes()
+    if n_nodes > 400:
+        log(f"[cycle-search] Skipped: corridor too large ({n_nodes} nodes)")
+        return None
+
     try:
-        # minimum_cycle_basis requires a simple undirected graph
         G_und = nx.Graph(G_sub.to_undirected())
         cycles = nx.minimum_cycle_basis(G_und, weight=weight_attr)
     except Exception as e:
@@ -703,7 +826,6 @@ def _cycle_search(G_sub, ideal_line, landmarks, kd_data, weight_attr='absw'):
 
     scorer = SymmetryScorer(landmarks, ideal_line)
 
-    # Only evaluate cycles with at least 10 nodes
     large_cycles = [c for c in cycles if len(c) >= 10]
     if not large_cycles:
         large_cycles = cycles[:5]
@@ -737,7 +859,11 @@ def _cycle_search(G_sub, ideal_line, landmarks, kd_data, weight_attr='absw'):
 
 
 def _segment_route(G_sub, ideal_line, landmarks, kd_data, weight_attr='absw'):
-    """Fallback: waypoint-based routing with symmetry weights."""
+    """Fallback: waypoint-based routing with symmetry weights.
+
+    Pins start/end to cusp node so both lobes originate from and
+    return to the same top-center point.
+    """
     import networkx as nx
 
     if kd_data is None:
@@ -745,12 +871,26 @@ def _segment_route(G_sub, ideal_line, landmarks, kd_data, weight_attr='absw'):
 
     tree, coords, nids = kd_data
 
+    # Pin start/end to cusp node if available
+    cusp = landmarks.get('cusp')
+    apex = landmarks.get('apex')
+    cusp_node = _find_landmark_node(kd_data, cusp['coord']) if cusp else None
+    apex_node = _find_landmark_node(kd_data, apex['coord']) if apex else None
+
     n_wps = min(25, max(8, len(ideal_line) // 2))
     wps = sample_polyline(ideal_line, n_wps)
     wps_a = np.asarray(wps, dtype=np.float64)
 
     _, indices = tree.query(wps_a)
     node_ids = [nids[i] for i in indices]
+
+    # Force cusp at start and end, apex at midpoint
+    if cusp_node is not None:
+        node_ids[0] = cusp_node
+        node_ids[-1] = cusp_node
+    if apex_node is not None and len(node_ids) > 2:
+        mid = len(node_ids) // 2
+        node_ids[mid] = apex_node
 
     deduped = [node_ids[0]]
     for i in range(1, len(node_ids)):
@@ -771,7 +911,17 @@ def _segment_route(G_sub, ideal_line, landmarks, kd_data, weight_attr='absw'):
             if not full or full[-1] != pt:
                 full.append(pt)
 
-    if full and len(full) >= 3:
+    # Close the loop back to cusp
+    if full and len(full) >= 3 and cusp_node is not None:
+        try:
+            path_close = nx.shortest_path(G_sub, deduped[-1], cusp_node, weight=weight_attr)
+            for nid in path_close[1:]:
+                pt = [G_sub.nodes[nid]['y'], G_sub.nodes[nid]['x']]
+                if not full or full[-1] != pt:
+                    full.append(pt)
+        except (nx.NetworkXNoPath, nx.NodeNotFound):
+            pass
+    elif full and len(full) >= 3:
         if haversine(full[0][0], full[0][1], full[-1][0], full[-1][1]) < 50:
             try:
                 path_close = nx.shortest_path(G_sub, deduped[-1], deduped[0], weight=weight_attr)

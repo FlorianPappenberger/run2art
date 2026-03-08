@@ -291,12 +291,14 @@
             <div class="version-block v81abs">
                 <div class="version-card">
                     <h2><span class="version-badge badge-v81abs">v8.1-abs</span> Symmetry-First Router</h2>
-                    <div class="version-date">March 2026 — Bilateral Symmetry + Trunk Penalty + Mirror-Search + Cycle Discovery</div>
+                    <div class="version-date">March 2026 — Bilateral Symmetry + Cusp-Apex Verticality + Curvature Guard + Mirror-Search</div>
                     <h3>Philosophy</h3>
                     <ul>
                         <li>Treats <strong>bilateral symmetry</strong> as a hard constraint — trunks are mathematically impossible</li>
                         <li>Routes maximize "Heart-ness" via mirror-error, not Euclidean proximity</li>
-                        <li>SymmetryScorer: left-lobe/right-lobe reflection across cusp→apex axis</li>
+                        <li>SymmetryScorer: 6-component scoring (mirror + verticality + curvature + trunk + TA-Fréchet + spatial)</li>
+                        <li><strong>Cusp-to-Apex constraint</strong>: both lobes originate from cusp (top) and terminate at apex (bottom)</li>
+                        <li><strong>Curvature guard</strong>: prevents flattening into rectangles by comparing curvature profiles</li>
                     </ul>
                     <h3>AGENT 'SPATIAL' — Landmark Extraction</h3>
                     <ul class="change-add">
@@ -313,11 +315,13 @@
                         <li><strong>Apex-aware turns</strong>: 180° allowed at apex, max penalty in lobes</li>
                         <li><strong>Tangent pruning</strong>: removes edges &gt;35° from local tangent</li>
                     </ul>
-                    <h3>AGENT 'VISION' — SymmetryScorer</h3>
+                    <h3>AGENT 'VISION' — SymmetryScorer (6-component)</h3>
                     <ul class="change-add">
-                        <li><strong>Mirror Error (40%)</strong>: Fréchet between left lobe and reflected right lobe</li>
-                        <li><strong>Trunk Penalty (25%)</strong>: detects out-and-back spikes × 10</li>
-                        <li><strong>Turning-angle Fréchet (20%)</strong>: shape grammar fidelity</li>
+                        <li><strong>Mirror Error (25%)</strong>: Fréchet between left lobe and reflected right lobe</li>
+                        <li><strong>Verticality (15%)</strong>: cusp-to-apex axis alignment + origin/terminus pinning</li>
+                        <li><strong>Curvature (15%)</strong>: flatness detection, distribution mismatch, lobe-arc peaks</li>
+                        <li><strong>Trunk Penalty (15%)</strong>: detects out-and-back spikes × 10</li>
+                        <li><strong>Turning-angle Fréchet (15%)</strong>: shape grammar fidelity</li>
                         <li><strong>Spatial Fréchet (15%)</strong>: geometric grounding</li>
                     </ul>
                     <h3>Cost Formula</h3>
@@ -328,9 +332,9 @@
                         Apex bonus: U-turns cheap within 30m; lobe reversals +500m
                     </div>
                     <div class="metrics-row">
-                        <div class="metric"><strong>113.2</strong> <span>Fit Score</span></div>
-                        <div class="metric"><strong>179.7</strong> <span>Optimize Score</span></div>
-                        <div class="metric"><strong>114s / 487s</strong> <span>Fit / Optimize Time</span></div>
+                        <div class="metric"><strong>173.5</strong> <span>Fit Score</span></div>
+                        <div class="metric"><strong>216.2</strong> <span>Optimize Score</span></div>
+                        <div class="metric"><strong>98s / 425s</strong> <span>Fit / Optimize Time</span></div>
                     </div>
                 </div>
             </div>
@@ -343,7 +347,7 @@
             <tbody>
                 <tr><td><strong>Densification</strong></td><td>Uniform</td><td>Curvature-based</td><td>Adaptive</td><td>Adaptive</td><td>Adaptive</td><td>Adaptive</td></tr>
                 <tr><td><strong>Routing</strong></td><td>Shape-aware A*</td><td>Segment-constrained tube</td><td>Anchor-point + infill</td><td>Soft-constraint field</td><td>Multiplicative penalty + skip</td><td>Mirror-search + cycle-basis</td></tr>
-                <tr><td><strong>Scoring</strong></td><td>6-component bidir</td><td>6-component bidir</td><td>6-component bidir</td><td>Fréchet-primary</td><td>Fréchet-primary + reject gate</td><td>SymmetryScorer (mirror+trunk)</td></tr>
+                <tr><td><strong>Scoring</strong></td><td>6-component bidir</td><td>6-component bidir</td><td>6-component bidir</td><td>Fréchet-primary</td><td>Fréchet-primary + reject gate</td><td>SymmetryScorer (6-comp)</td></tr>
                 <tr><td><strong>Edge Cost Model</strong></td><td>Distance only</td><td>Multi-objective</td><td>Shape-deviation</td><td>Additive 5-comp</td><td>Multiplicative β·d²</td><td>L×Hw×(1+β·Serr+γ·θ)</td></tr>
                 <tr><td><strong>Search</strong></td><td>Unidirectional A*</td><td>Unidirectional A*</td><td>Unidirectional A*</td><td>Bidirectional A*</td><td>Bidirectional A*</td><td>nx.shortest_path</td></tr>
                 <tr><td><strong>Heading Penalty</strong></td><td>None</td><td>None</td><td>None</td><td>0–300m</td><td>0–500m + tangent pruning</td><td>γ=1.5 heading + tangent prune</td></tr>

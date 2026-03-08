@@ -7652,7 +7652,7 @@
           -0.9883196
         ]
       ],
-      "score": 113.2,
+      "score": 173.5,
       "rotation": 330,
       "scale": 0.01,
       "center": [
@@ -7660,7 +7660,7 @@
         -0.9766
       ],
       "route_length_m": 4752.0,
-      "time_seconds": 114.3,
+      "time_seconds": 97.8,
       "version": "v8.1-abs",
       "mode": "fit"
     },
@@ -8235,7 +8235,7 @@
           -1.0018395
         ]
       ],
-      "score": 179.7,
+      "score": 216.2,
       "rotation": 97,
       "scale": 0.0088,
       "center": [
@@ -8243,7 +8243,7 @@
         -1.0006
       ],
       "route_length_m": 6562.0,
-      "time_seconds": 486.5,
+      "time_seconds": 424.5,
       "version": "v8.1-abs",
       "mode": "optimize"
     }
