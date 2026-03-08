@@ -290,45 +290,47 @@
             <!-- V8.1-Abstract -->
             <div class="version-block v81abs">
                 <div class="version-card">
-                    <h2><span class="version-badge badge-v81abs">v8.1-abs</span> Abstract Signature Matching</h2>
-                    <div class="version-date">March 2026 — Topological Grammar + Mirror-Search + Abstract Fidelity</div>
+                    <h2><span class="version-badge badge-v81abs">v8.1-abs</span> Symmetry-First Router</h2>
+                    <div class="version-date">March 2026 — Bilateral Symmetry + Trunk Penalty + Mirror-Search + Cycle Discovery</div>
                     <h3>Philosophy</h3>
                     <ul>
-                        <li>Treats the template as a <strong>Topological Grammar</strong> rather than GPS coordinates</li>
-                        <li>Routes maximize "Heart-ness" via geometric invariants, not Euclidean proximity</li>
-                        <li>Parallel variant alongside v8.1 — does not replace Blueprint Snapping</li>
+                        <li>Treats <strong>bilateral symmetry</strong> as a hard constraint — trunks are mathematically impossible</li>
+                        <li>Routes maximize "Heart-ness" via mirror-error, not Euclidean proximity</li>
+                        <li>SymmetryScorer: left-lobe/right-lobe reflection across cusp→apex axis</li>
                     </ul>
                     <h3>AGENT 'SPATIAL' — Landmark Extraction</h3>
                     <ul class="change-add">
                         <li><strong>Cusp detection</strong>: top indentation (second-sharpest turn, separated from apex)</li>
                         <li><strong>Apex detection</strong>: bottom sharp point (sharpest turn in template)</li>
+                        <li><strong>Symmetry axis</strong>: unit vector from Cusp to Apex for reflection</li>
                         <li><strong>Lobe-Arc zones</strong>: max-curvature regions on left and right halves</li>
-                        <li><strong>Wide 500m search tube</strong>: finds best-fitting roads regardless of distance</li>
                     </ul>
-                    <h3>AGENT 'GRAPH' — Signature-Weighted Router</h3>
+                    <h3>AGENT 'GRAPH' — Symmetry-Weighted Router</h3>
                     <ul class="change-add">
-                        <li><strong>Turning-Angle Continuity cost</strong>: Weight = Length × (1 + HeadingError)</li>
+                        <li><strong>Symmetry cost</strong>: W = L × H_w × (1 + β·S_err + γ·θ_dev)</li>
                         <li><strong>Mirror-Search</strong>: routes left lobe, penalizes used edges 50×, routes right lobe</li>
-                        <li><strong>Apex-Cusp Bridge</strong>: 50% cost reduction near cusp/apex nodes</li>
-                        <li><strong>Symmetry Objective</strong>: edge-disjoint left/right paths combined into closed loop</li>
+                        <li><strong>Cycle-Search</strong>: nx.minimum_cycle_basis for symmetric loop discovery</li>
+                        <li><strong>Apex-aware turns</strong>: 180° allowed at apex, max penalty in lobes</li>
+                        <li><strong>Tangent pruning</strong>: removes edges &gt;35° from local tangent</li>
                     </ul>
-                    <h3>AGENT 'VISION' — Abstract Fidelity Scorer</h3>
+                    <h3>AGENT 'VISION' — SymmetryScorer</h3>
                     <ul class="change-add">
-                        <li><strong>Turning-angle Fréchet (45%)</strong>: Fréchet on angle chains, ignoring GPS coords</li>
-                        <li><strong>Symmetry Index (25%)</strong>: reflective symmetry across vertical axis</li>
-                        <li><strong>Curvature Consistency (15%)</strong>: arc radius match vs template lobes</li>
-                        <li><strong>Spatial Fréchet (15%)</strong>: fallback geometric grounding</li>
+                        <li><strong>Mirror Error (40%)</strong>: Fréchet between left lobe and reflected right lobe</li>
+                        <li><strong>Trunk Penalty (25%)</strong>: detects out-and-back spikes × 10</li>
+                        <li><strong>Turning-angle Fréchet (20%)</strong>: shape grammar fidelity</li>
+                        <li><strong>Spatial Fréchet (15%)</strong>: geometric grounding</li>
                     </ul>
                     <h3>Cost Formula</h3>
                     <div class="cost-formula">
-                        C(u,v) = L_edge × HW_mult × (1 + heading_error)<br>
-                        heading_error ∈ [0, 1]: 0 = aligned with local tangent, 1 = perpendicular<br>
-                        Landmark bonus: edges within 80m of cusp/apex → 50% cost
+                        W(u,v) = L × H_w × (1 + β·S_err + γ·θ_dev)<br>
+                        β = 0.005 per-metre symmetry penalty, γ = 1.5 heading weight<br>
+                        S_err = mirror distance (edge midpoint reflection → nearest ideal point)<br>
+                        Apex bonus: U-turns cheap within 30m; lobe reversals +500m
                     </div>
                     <div class="metrics-row">
-                        <div class="metric"><strong>210.6</strong> <span>Fit Score</span></div>
-                        <div class="metric"><strong>167.9</strong> <span>Optimize Score</span></div>
-                        <div class="metric"><strong>57s / 270s</strong> <span>Fit / Optimize Time</span></div>
+                        <div class="metric"><strong>113.2</strong> <span>Fit Score</span></div>
+                        <div class="metric"><strong>179.7</strong> <span>Optimize Score</span></div>
+                        <div class="metric"><strong>114s / 487s</strong> <span>Fit / Optimize Time</span></div>
                     </div>
                 </div>
             </div>
@@ -340,14 +342,14 @@
             <thead><tr><th>Aspect</th><th>v5.1</th><th>v6.0</th><th>v7.0</th><th>v8.0</th><th>v8.1</th><th>v8.1-abs</th></tr></thead>
             <tbody>
                 <tr><td><strong>Densification</strong></td><td>Uniform</td><td>Curvature-based</td><td>Adaptive</td><td>Adaptive</td><td>Adaptive</td><td>Adaptive</td></tr>
-                <tr><td><strong>Routing</strong></td><td>Shape-aware A*</td><td>Segment-constrained tube</td><td>Anchor-point + infill</td><td>Soft-constraint field</td><td>Multiplicative penalty + skip</td><td>Mirror-search + signature</td></tr>
-                <tr><td><strong>Scoring</strong></td><td>6-component bidir</td><td>6-component bidir</td><td>6-component bidir</td><td>Fréchet-primary</td><td>Fréchet-primary + reject gate</td><td>TA-Fréchet + symmetry</td></tr>
-                <tr><td><strong>Edge Cost Model</strong></td><td>Distance only</td><td>Multi-objective</td><td>Shape-deviation</td><td>Additive 5-comp</td><td>Multiplicative β·d²</td><td>L×(1+HeadErr)</td></tr>
+                <tr><td><strong>Routing</strong></td><td>Shape-aware A*</td><td>Segment-constrained tube</td><td>Anchor-point + infill</td><td>Soft-constraint field</td><td>Multiplicative penalty + skip</td><td>Mirror-search + cycle-basis</td></tr>
+                <tr><td><strong>Scoring</strong></td><td>6-component bidir</td><td>6-component bidir</td><td>6-component bidir</td><td>Fréchet-primary</td><td>Fréchet-primary + reject gate</td><td>SymmetryScorer (mirror+trunk)</td></tr>
+                <tr><td><strong>Edge Cost Model</strong></td><td>Distance only</td><td>Multi-objective</td><td>Shape-deviation</td><td>Additive 5-comp</td><td>Multiplicative β·d²</td><td>L×Hw×(1+β·Serr+γ·θ)</td></tr>
                 <tr><td><strong>Search</strong></td><td>Unidirectional A*</td><td>Unidirectional A*</td><td>Unidirectional A*</td><td>Bidirectional A*</td><td>Bidirectional A*</td><td>nx.shortest_path</td></tr>
-                <tr><td><strong>Heading Penalty</strong></td><td>None</td><td>None</td><td>None</td><td>0–300m</td><td>0–500m + tangent pruning</td><td>Implicit (cost × err)</td></tr>
-                <tr><td><strong>U-turn Control</strong></td><td>None</td><td>None</td><td>None</td><td>2000m non-apex</td><td>5000m non-apex</td><td>Cusp/Apex bridge</td></tr>
-                <tr><td><strong>Corridor</strong></td><td>Full graph</td><td>GeoPandas tube</td><td>GeoPandas tube</td><td>Adaptive wide-tube</td><td>Adaptive + tangent prune</td><td>Wide 500m tube</td></tr>
-                <tr><td><strong>Trunk Prevention</strong></td><td>None</td><td>Partial</td><td>Corrective infill</td><td>Soft constraints</td><td>Skip logic + prune + β·d²</td><td>Mirror symmetry</td></tr>
+                <tr><td><strong>Heading Penalty</strong></td><td>None</td><td>None</td><td>None</td><td>0–300m</td><td>0–500m + tangent pruning</td><td>γ=1.5 heading + tangent prune</td></tr>
+                <tr><td><strong>U-turn Control</strong></td><td>None</td><td>None</td><td>None</td><td>2000m non-apex</td><td>5000m non-apex</td><td>Apex-aware (30m free)</td></tr>
+                <tr><td><strong>Corridor</strong></td><td>Full graph</td><td>GeoPandas tube</td><td>GeoPandas tube</td><td>Adaptive wide-tube</td><td>Adaptive + tangent prune</td><td>500m tube + tangent prune</td></tr>
+                <tr><td><strong>Trunk Prevention</strong></td><td>None</td><td>Partial</td><td>Corrective infill</td><td>Soft constraints</td><td>Skip logic + prune + β·d²</td><td>SymmetryScorer + trunk×10</td></tr>
                 <tr><td><strong>Files</strong></td><td>1 (engine_v5.py)</td><td>4 (modular)</td><td>4 (modular)</td><td>6 (+ CoreRouter)</td><td>6 (upgraded)</td><td>7 (+ abstract_router)</td></tr>
             </tbody>
         </table>
