@@ -54,6 +54,7 @@ from routing import (
     route_graph, route_shape_aware, route_with_anchors, route_osrm,
 )
 from core_router import CoreRouter
+from abstract_router import AbstractRouter, abstract_score
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -93,6 +94,34 @@ def fit_and_score(G, pts, rot, scale, center,
     return _fit_and_score_v7(G, pts, rot, scale, center,
                               dense_spacing, curve_spacing, kdtree_data,
                               refine, use_corridor)
+
+
+def fit_and_score_abstract(G, pts, rot, scale, center,
+                           dense_spacing=40, curve_spacing=18, kdtree_data=None):
+    """v8.1-Abstract: Densify → AbstractRouter (signature matching) → abstract score."""
+    wps = shape_to_latlngs(pts, center, scale, rot)
+    ideal = adaptive_densify(wps, base_spacing=35, curve_spacing=15)
+
+    if not G:
+        return (1e9, None)
+
+    try:
+        router = AbstractRouter(G, ideal)
+        route = router.route()
+        if route and len(route) >= 2:
+            score = router.score(route)
+            # Reject gate: if turning-angle Fréchet is very poor, penalize
+            from abstract_router import _turning_angle_frechet
+            ta_fd = _turning_angle_frechet(route, ideal)
+            if ta_fd > 90.0:  # >90° mean deviation → double penalty
+                score *= 2.0
+                log(f"[abstract] TA-Fréchet gate: {ta_fd:.1f}° > 90 → score doubled")
+            return (score, route)
+    except Exception as e:
+        log(f"[abstract] AbstractRouter failed ({e}), falling back to v8.1")
+
+    return fit_and_score(G, pts, rot, scale, center,
+                         dense_spacing, curve_spacing, kdtree_data)
 
 
 def _fit_and_score_v7(G, pts, rot, scale, center,
@@ -531,11 +560,128 @@ def mode_best_shape(payload):
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+#  MODE: ABSTRACT FIT (Signature Matching)
+# ═══════════════════════════════════════════════════════════════════════════
+
+def mode_fit_abstract(payload):
+    """
+    Abstract Quick Fit — same grid search as fit, but routes with
+    AbstractRouter (signature matching) instead of CoreRouter.
+    """
+    shapes = payload.get("shapes", [])
+    idx = payload.get("shape_index", 0)
+    center = payload.get("center_point", [51.505, -0.09])
+
+    if idx < 0 or idx >= len(shapes):
+        return {"error": "Invalid shape index"}
+
+    pts = shapes[idx]["pts"]
+    name = shapes[idx].get("name", "")
+
+    G = fetch_graph(center, dist=2500) if HAS_OSMNX else None
+    kd = build_kdtree(G) if G else None
+
+    # Step 1: Coarse scan (same as fit)
+    rotations = list(range(0, 360, 45))
+    scales = [0.010, 0.014, 0.018, 0.023, 0.030]
+    offsets = make_offsets(km_range=1.0, steps=2)
+
+    if G:
+        coarse = coarse_grid_search(G, pts, center, rotations, scales,
+                                    offsets, densify_spacing=150,
+                                    kdtree_data=kd)
+        top = coarse[:4]
+    else:
+        return {"error": "Abstract router requires osmnx graph"}
+
+    # Step 2: Fine routing with AbstractRouter
+    best_score, best = 1e9, None
+    for _, rot, sc, c in top:
+        for dr in [0, -15, 15]:
+            for sf in [1.0, 0.90, 1.10]:
+                for dlat, dlng in [(0, 0), (0.001, 0), (-0.001, 0),
+                                   (0, 0.0015), (0, -0.0015)]:
+                    r2, s2 = rot + dr, sc * sf
+                    c2 = [c[0] + dlat, c[1] + dlng]
+                    score, route = fit_and_score_abstract(G, pts, r2, s2, c2,
+                                                          kdtree_data=kd)
+                    if score < best_score:
+                        best_score = score
+                        best = make_result(route, score, r2, s2, c2, idx, name)
+                        log(f"[abstract-fit] Best: rot={r2:.0f}° scale={s2:.4f} "
+                            f"score={score:.1f}")
+
+    log(f"[abstract-fit] Done — best={best_score:.1f}")
+    return best or {"error": "Could not trace shape with abstract router"}
+
+
+def mode_optimize_abstract(payload):
+    """
+    Abstract Full Optimisation — larger coarse scan + AbstractRouter fine routing.
+    """
+    shapes = payload.get("shapes", [])
+    idx = payload.get("shape_index", 0)
+    center = payload.get("center_point", [51.505, -0.09])
+
+    if idx < 0 or idx >= len(shapes):
+        return {"error": "Invalid shape index"}
+
+    pts = shapes[idx]["pts"]
+    name = shapes[idx].get("name", "")
+
+    G = fetch_graph(center, dist=4000)
+    if G is None:
+        return {"error": "Abstract router requires osmnx graph"}
+
+    kd = build_kdtree(G)
+
+    # Step 1: Coarse
+    rotations = list(range(0, 360, 15))
+    scales = [0.010, 0.014, 0.018, 0.022, 0.027, 0.033, 0.040]
+    offsets = make_offsets(km_range=2.0, steps=3)
+    coarse = coarse_grid_search(G, pts, center, rotations, scales,
+                                offsets, densify_spacing=200,
+                                kdtree_data=kd)
+
+    # Step 2: Fine search with AbstractRouter
+    seen, kept = set(), []
+    for _, rot, sc, c in coarse[:10]:
+        key = (round(rot, 0), round(sc, 4), round(c[0], 4), round(c[1], 4))
+        if key not in seen:
+            seen.add(key)
+            kept.append((rot, sc, c))
+        if len(kept) >= 8:
+            break
+
+    best_score, best = 1e9, None
+    for rot, sc, c in kept:
+        for dr in [0, -7, 7, -15, 15]:
+            for sf in [1.0, 0.88, 1.12]:
+                for dlat, dlng in [(0, 0), (0.003, 0), (-0.003, 0),
+                                   (0, 0.004), (0, -0.004)]:
+                    r2, s2 = rot + dr, sc * sf
+                    c2 = [c[0] + dlat, c[1] + dlng]
+                    score, route = fit_and_score_abstract(G, pts, r2, s2, c2,
+                                                          kdtree_data=kd)
+                    if score < best_score:
+                        best_score = score
+                        best = make_result(route, score, r2, s2, c2)
+
+    if best:
+        best["shape_index"] = idx
+        best["shape_name"] = name
+    log(f"[abstract-optimize] Done — best={best_score:.1f}")
+    return best or {"error": "Could not fit shape with abstract router."}
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 #  MAIN
 # ═══════════════════════════════════════════════════════════════════════════
 
 HANDLERS = {"fit": mode_fit, "optimize": mode_optimize,
-            "best_shape": mode_best_shape}
+            "best_shape": mode_best_shape,
+            "abstract_fit": mode_fit_abstract,
+            "abstract_optimize": mode_optimize_abstract}
 
 ENGINE_VERSION = "8.1"
 
