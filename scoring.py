@@ -76,8 +76,9 @@ def bidirectional_score(route, ideal_pts):
         sample_polyline(ideal_pts, min(20, len(ideal_pts))),
     )
 
-    score = (fwd_avg * 0.30 + rev_avg * 0.15 + haus * 0.10 +
-             perp * 0.20 + angle_penalty * 0.15 + lr_penalty * 0.10)
+    # PHASE 1: Reweighted — Hausdorff + turning-angle up, coverage + detour down
+    score = (haus * 0.25 + angle_penalty * 0.25 + fwd_avg * 0.20 +
+             perp * 0.15 + rev_avg * 0.10 + lr_penalty * 0.05)
     if coverage < 0.75:
         score *= (2.0 - coverage)
     return score
@@ -158,7 +159,7 @@ def _length_ratio_penalty(route_pts, ideal_pts):
 
 
 def coarse_proximity_score(G, waypoints, kdtree_data=None):
-    """Fast coarse score — proximity of waypoints to nearest road nodes."""
+    """Fast coarse score — proximity + coverage penalty (Phase 9 SDF-inspired)."""
     if G is None:
         return 1e9
     try:
@@ -173,6 +174,9 @@ def coarse_proximity_score(G, waypoints, kdtree_data=None):
             nlats = np.array([G.nodes[nid]['y'] for nid in nids])
             nlons = np.array([G.nodes[nid]['x'] for nid in nids])
             dists = haversine_vector(wps_a[:, 0], wps_a[:, 1], nlats, nlons)
-        return float(dists.mean() + dists.max() * 0.3)
+        base = float(dists.mean() + dists.max() * 0.3)
+        # Phase 9: Coverage penalty — penalise placements with road gaps
+        uncovered = float((dists > 150.0).sum()) / max(len(dists), 1)
+        return base * (1.0 + 2.0 * uncovered)
     except Exception:
         return 1e9

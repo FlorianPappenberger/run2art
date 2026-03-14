@@ -266,27 +266,78 @@ def _perpendicular_mean(route, ideal_pts):
     return float(point_to_segments_vectorized(ra, ia[:-1], ia[1:]).mean())
 
 
+def _hausdorff_distance(route, ideal_pts):
+    """Hausdorff distance between route and ideal (metres)."""
+    n_i = min(40, len(ideal_pts))
+    n_r = min(60, len(route))
+    hs_ideal = sample_polyline(ideal_pts, n_i)
+    hs_route = sample_polyline(route, n_r)
+    hia = np.asarray(hs_ideal, dtype=np.float64)
+    hra = np.asarray(hs_route, dtype=np.float64)
+    hdist = haversine_matrix(hia[:, 0], hia[:, 1], hra[:, 0], hra[:, 1])
+    return float(max(hdist.min(axis=1).max(), hdist.min(axis=0).max()))
+
+
+def fourier_descriptor_score(route, ideal_pts, n_sample=64, n_harmonics=10):
+    """Shape similarity via Fourier descriptor magnitude spectrum.
+
+    Rotation/scale-invariant comparison of the complex boundary DFT.
+    Returns score in approximate-metres scale (lower = better).
+    """
+    if not route or len(route) < 4:
+        return 100.0
+
+    r_s = sample_polyline(route, n_sample)
+    i_s = sample_polyline(ideal_pts, n_sample)
+    ra = np.asarray(r_s, dtype=np.float64)
+    ia = np.asarray(i_s, dtype=np.float64)
+
+    def _normalised_magnitudes(pts):
+        centroid = pts.mean(axis=0)
+        z = (pts[:, 0] - centroid[0]) + 1j * (pts[:, 1] - centroid[1])
+        F = np.fft.fft(z)
+        F[0] = 0  # remove DC (translation invariance)
+        mag = np.abs(F)
+        norm = mag[1] if mag[1] > 1e-12 else 1.0
+        return mag / norm
+
+    mag_r = _normalised_magnitudes(ra)
+    mag_i = _normalised_magnitudes(ia)
+
+    K = min(n_harmonics, n_sample // 2)
+    diff = np.abs(mag_r[1:K + 1] - mag_i[1:K + 1])
+    weights = 1.0 / np.arange(1, K + 1)
+    raw = float(np.sum(diff * weights) / np.sum(weights))
+    return raw * 80.0  # scale to metres-like range
+
+
 def score_v8(route, ideal_pts):
     """Composite v8 score (lower = better, in metres).
 
+    # PHASE 1: Reweighted to emphasise Hausdorff and turning-angle.
     Components:
-      Fréchet (normalized)    40%   — shape flow recognizability
-      Coverage penalty        20%   — did we hit all parts?
-      Perpendicular mean      15%   — how close to center-line?
-      Heading fidelity        15%   — do turns match template?
-      Length-ratio             10%   — proportional fidelity
+      Hausdorff               25%   — worst-case deviation (catches cusp failures)
+      Heading fidelity        25%   — do turns match template? (heart-diagnostic)
+      Coverage penalty         20%   — did we hit all parts?
+      Fréchet (normalized)    20%   — shape flow recognizability
+      Perpendicular mean       5%   — how close to center-line?
+      Length-ratio              5%   — proportional fidelity
     """
     if not route or len(route) < 2:
         return 1e9
 
     fd = frechet_score(route, ideal_pts)
+    haus = _hausdorff_distance(route, ideal_pts)
     cov = _coverage_penalty(route, ideal_pts)
     perp = _perpendicular_mean(route, ideal_pts)
     head = _heading_fidelity(route, ideal_pts)
     lr = _length_ratio_penalty(route, ideal_pts)
+    fourier = fourier_descriptor_score(route, ideal_pts)
 
-    return (fd * 0.40 +
+    return (haus * 0.20 +
+            head * 0.20 +
             cov * 0.20 +
-            perp * 0.15 +
-            head * 0.15 +
-            lr * 0.10)
+            fd * 0.15 +
+            fourier * 0.10 +
+            perp * 0.10 +
+            lr * 0.05)

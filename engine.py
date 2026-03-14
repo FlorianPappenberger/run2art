@@ -45,6 +45,7 @@ from geometry import (
     rotate_shape, shape_to_latlngs, sample_polyline,
     turning_angle, point_to_segment_dist, min_dist_to_polyline,
     densify, adaptive_densify, identify_anchor_points,
+    generate_heart_variants,
 )
 from scoring import bidirectional_score, coarse_proximity_score
 from scoring_v8 import score_v8, frechet_score, frechet_normalized
@@ -159,39 +160,58 @@ def _fit_and_score_v7(G, pts, rot, scale, center,
 
 
 def _refine_route(G, route, ideal, original_wps, kdtree_data):
-    """One-pass refinement: find worst-deviation points and re-route."""
-    ideal_s = sample_polyline(ideal, min(60, len(ideal) * 2))
-    route_s = sample_polyline(route, min(80, len(route)))
-    if len(ideal_s) < 4 or len(route_s) < 4:
-        return route
+    """Iterative worst-segment repair (Phase 7 enhancement).
 
-    ia = np.asarray(ideal_s, dtype=np.float64)
-    ra = np.asarray(route_s, dtype=np.float64)
-    dists = haversine_matrix(ia[:, 0], ia[:, 1], ra[:, 0], ra[:, 1]).min(axis=1)
+    Multiple passes: each finds worst-deviation segments and re-routes them.
+    """
+    best_route = route
+    best_score = bidirectional_score(route, ideal)
 
-    threshold = 80.0
-    bad_indices = np.where(dists > threshold)[0]
-    if len(bad_indices) == 0:
-        return route
+    for iteration in range(3):
+        ideal_s = sample_polyline(ideal, min(60, len(ideal) * 2))
+        route_s = sample_polyline(best_route, min(80, len(best_route)))
+        if len(ideal_s) < 4 or len(route_s) < 4:
+            break
 
-    corrective = [ideal_s[i] for i in bad_indices[::2]]
-    if not corrective:
-        return route
+        ia = np.asarray(ideal_s, dtype=np.float64)
+        ra = np.asarray(route_s, dtype=np.float64)
+        dists = haversine_matrix(ia[:, 0], ia[:, 1], ra[:, 0], ra[:, 1]).min(axis=1)
 
-    merged = list(original_wps)
-    for cp in corrective:
-        best_pos, best_d = 0, 1e9
-        for k in range(len(merged) - 1):
-            d = point_to_segment_dist(cp, merged[k], merged[k + 1])
-            if d < best_d:
-                best_d = d
-                best_pos = k + 1
-        merged.insert(best_pos, cp)
+        threshold = max(60.0 - iteration * 10.0, 30.0)
+        bad_indices = np.where(dists > threshold)[0]
+        if len(bad_indices) == 0:
+            break
 
-    new_route = route_shape_aware(G, merged, ideal, kdtree_data=kdtree_data)
-    if new_route and bidirectional_score(new_route, ideal) < bidirectional_score(route, ideal):
-        return new_route
-    return route
+        # Take the worst segment's corrective points
+        worst_order = np.argsort(-dists[bad_indices])
+        n_fix = min(len(worst_order), 4 + iteration * 2)
+        corrective = [ideal_s[bad_indices[i]] for i in worst_order[:n_fix:2]]
+        if not corrective:
+            break
+
+        merged = list(original_wps)
+        for cp in corrective:
+            best_pos, best_d = 0, 1e9
+            for k in range(len(merged) - 1):
+                d = point_to_segment_dist(cp, merged[k], merged[k + 1])
+                if d < best_d:
+                    best_d = d
+                    best_pos = k + 1
+            merged.insert(best_pos, cp)
+
+        new_route = route_shape_aware(G, merged, ideal, kdtree_data=kdtree_data)
+        if new_route:
+            new_score = bidirectional_score(new_route, ideal)
+            if new_score < best_score:
+                best_route = new_route
+                best_score = new_score
+                log(f"[refine] Pass {iteration+1}: improved to {new_score:.1f}")
+            else:
+                break
+        else:
+            break
+
+    return best_route
 
 
 def make_result(route, score, rot, scale, center, idx=None, name=""):
@@ -325,6 +345,103 @@ def mode_fit(payload):
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+#  CMA-ES REFINEMENT (Phase 4)
+# ═══════════════════════════════════════════════════════════════════════════
+
+def _cma_refine(G, pts, best, kdtree_data=None, max_evals=40):
+    """Refine rotation/scale/center using CMA-ES optimiser."""
+    try:
+        import cma
+    except ImportError:
+        log("[cma] cma package not installed, skipping CMA-ES refinement")
+        return None
+
+    r0, s0 = best['rotation'], best['scale']
+    c0 = best['center']
+    best_score = best.get('score', 1e9)
+    best_result = [best]  # mutable ref
+
+    # Normalise params to similar scales for CMA-ES
+    x0 = [r0 / 360.0, s0 / 0.04, c0[0] / 0.01, c0[1] / 0.01]
+    sigma0 = 0.05  # ~5% initial step
+
+    def objective(x):
+        rot = (x[0] * 360.0) % 360
+        sc = max(x[1] * 0.04, 0.005)
+        c = [x[2] * 0.01, x[3] * 0.01]
+        score, route = fit_and_score(G, pts, rot, sc, c, kdtree_data=kdtree_data)
+        if route and score < best_result[0].get('score', 1e9):
+            best_result[0] = make_result(route, score, rot, sc, c)
+            log(f"[cma] Improved: score={score:.1f}m rot={rot:.1f} sc={sc:.4f}")
+        return score
+
+    opts = cma.CMAOptions()
+    opts['maxfevals'] = max_evals
+    opts['verbose'] = -9  # silent
+    opts['timeout'] = 300
+    opts['bounds'] = [[0, 0.1, (c0[0] - 0.03) / 0.01, (c0[1] - 0.04) / 0.01],
+                      [1, 1.5, (c0[0] + 0.03) / 0.01, (c0[1] + 0.04) / 0.01]]
+
+    es = cma.CMAEvolutionStrategy(x0, sigma0, opts)
+    es.optimize(objective)
+
+    result = best_result[0]
+    if result.get('score', 1e9) < best_score:
+        log(f"[cma] CMA-ES improved score: {best_score:.1f} -> {result['score']:.1f}")
+        return result
+    log(f"[cma] CMA-ES did not improve (best={best_score:.1f})")
+    return None
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  CUSP-ALIGN CANDIDATES (Phase 3)
+# ═══════════════════════════════════════════════════════════════════════════
+
+def _cusp_align_candidates(pts, coarse_top, kdtree_data, n_cusp=15):
+    """Create candidates with heart cusp snapped to nearest road node.
+
+    For each top coarse candidate, compute where the cusp falls, find the
+    nearest road node, and adjust the center so the cusp lands exactly on it.
+    """
+    if kdtree_data is None:
+        return []
+
+    tree, coords, node_ids = kdtree_data
+
+    # Find the cusp point in normalized shape coords (lowest point = max y)
+    cusp_idx = max(range(len(pts)), key=lambda i: pts[i][1])
+    cusp_x, cusp_y = pts[cusp_idx]
+
+    aligned = []
+    seen_nodes = set()
+    for _, rot, sc, c in coarse_top[:n_cusp]:
+        rad = math.radians(rot)
+        cos_r, sin_r = math.cos(rad), math.sin(rad)
+        # Rotated cusp in normalized space
+        rx = 0.5 + (cusp_x - 0.5) * cos_r - (cusp_y - 0.5) * sin_r
+        ry = 0.5 + (cusp_x - 0.5) * sin_r + (cusp_y - 0.5) * cos_r
+        # Where cusp lands geographically
+        cusp_lat = c[0] - (ry - 0.5) * sc
+        cusp_lng = c[1] + (rx - 0.5) * sc * 1.4
+
+        # Nearest graph node
+        _, idx = tree.query([[cusp_lat, cusp_lng]])
+        nid = node_ids[idx[0]]
+        if nid in seen_nodes:
+            continue
+        seen_nodes.add(nid)
+        node_lat, node_lng = coords[idx[0]]
+
+        # Reverse: center so cusp lands on this node
+        new_c_lat = node_lat + (ry - 0.5) * sc
+        new_c_lng = node_lng - (rx - 0.5) * sc * 1.4
+        aligned.append((0, rot, sc, [new_c_lat, new_c_lng]))
+
+    log(f"[cusp-align] Generated {len(aligned)} cusp-anchored candidates")
+    return aligned
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 #  MODE: OPTIMIZE (Full two-step)
 # ═══════════════════════════════════════════════════════════════════════════
 
@@ -358,10 +475,17 @@ def mode_optimize(payload):
                                 offsets, densify_spacing=200,
                                 kdtree_data=kd)
 
-    # Step 2: Fine search
-    best = _fine_search(G, pts, coarse[:10], n_fine=8, kdtree_data=kd)
+    # Phase 3: Cusp-aligned candidates — snap heart cusp to nearest road nodes
+    cusp_aligned = _cusp_align_candidates(pts, coarse[:20], kd)
+    merged = coarse[:50] + cusp_aligned
+
+    # Step 2: Fine search (Phase 1: wider search)
+    best = _fine_search(G, pts, merged, n_fine=12, kdtree_data=kd)
     if best is None:
         return {"error": "Could not fit shape. Try a different area."}
+
+    # Phase 4: CMA-ES refinement around best candidate
+    best = _cma_refine(G, pts, best, kdtree_data=kd) or best
 
     # Refinement pass on best candidate
     r2, s2, c2 = best['rotation'], best['scale'], best['center']
@@ -370,6 +494,15 @@ def mode_optimize(payload):
     if ref_route and ref_score < best.get('score', 1e9):
         best = make_result(ref_route, ref_score, r2, s2, c2)
         log(f"[optimize] Refined: score={ref_score:.1f}m")
+
+    # Phase 6: Try heart shape variants with best params
+    r2, s2, c2 = best['rotation'], best['scale'], best['center']
+    variants = generate_heart_variants(pts, n_variants=4)
+    for vi, vpts in enumerate(variants[1:], 1):  # skip original (already tried)
+        vs, vr = fit_and_score(G, vpts, r2, s2, c2, kdtree_data=kd)
+        if vr and vs < best.get('score', 1e9):
+            best = make_result(vr, vs, r2, s2, c2)
+            log(f"[variant] Heart variant {vi} improved: score={vs:.1f}m")
 
     best["shape_index"] = idx
     best["shape_name"] = name

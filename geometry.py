@@ -54,6 +54,50 @@ def haversine_vector(lats1, lons1, lats2, lons2):
 #  SHAPE MANIPULATION
 # ═══════════════════════════════════════════════════════════════════════════
 
+def generate_heart_variants(base_pts, n_variants=5):
+    """Generate parametric heart shape variants (Phase 6).
+
+    Adjusts cusp sharpness, cleft depth, and lobe roundness to produce
+    slightly different heart outlines that may better fit the road network.
+    Returns list of point-lists including the original.
+    """
+    variants = [base_pts]  # original always included
+
+    # Find key indices in the base heart shape
+    # Cusp = max y, cleft = min y (or first/last point = same)
+    cusp_idx = max(range(len(base_pts)), key=lambda i: base_pts[i][1])
+    # Lobe peaks = leftmost and rightmost x
+    left_idx = min(range(len(base_pts)), key=lambda i: base_pts[i][0])
+    right_idx = max(range(len(base_pts)), key=lambda i: base_pts[i][0])
+
+    perturbations = [
+        (0, +0.06),   # sharper cusp (push cusp down)
+        (0, -0.04),   # blunter cusp
+        (+0.04, 0),   # wider lobes (push lobe peaks outward)
+        (-0.03, 0),   # narrower lobes
+    ]
+
+    for dx, dy in perturbations[:n_variants - 1]:
+        pts = [list(p) for p in base_pts]
+        if dy != 0:
+            # Adjust cusp and nearby points
+            pts[cusp_idx] = [pts[cusp_idx][0], pts[cusp_idx][1] + dy]
+            for i in [cusp_idx - 1, cusp_idx + 1]:
+                if 0 <= i < len(pts):
+                    pts[i] = [pts[i][0], pts[i][1] + dy * 0.3]
+        if dx != 0:
+            # Adjust lobe points
+            if right_idx < len(pts):
+                pts[right_idx] = [pts[right_idx][0] + dx, pts[right_idx][1]]
+            if left_idx < len(pts):
+                pts[left_idx] = [pts[left_idx][0] - dx, pts[left_idx][1]]
+        # Ensure closure
+        if pts[0] != pts[-1]:
+            pts[-1] = list(pts[0])
+        variants.append(pts)
+
+    return variants
+
 def rotate_shape(pts, angle_deg):
     """Rotate normalised [0,1] points around (0.5, 0.5)."""
     cx, cy = 0.5, 0.5

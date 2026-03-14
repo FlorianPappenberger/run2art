@@ -192,6 +192,35 @@ This engine incorporates techniques from the GPS art research ecosystem:
 | **gps2gpx.art** (web tool) | Manual overlay with road following | Validated difficulty of automated shape matching |
 
 
+## Algorithm Evolution (v8.2)
+
+The v8.2 engine introduces 10 algorithmic improvements over the v8.1 baseline, systematically benchmarked on Reading, UK:
+
+| Phase | Feature | Impact |
+|-------|---------|--------|
+| **2** | Curvature-adaptive beta | Edge cost penalty varies with local ideal-line curvature — stronger at cusps/clefts |
+| **3** | Cusp-aligned candidates | Snaps heart cusp to nearest road intersection node before fine search |
+| **4** | CMA-ES optimisation | Black-box continuous optimisation of rotation/scale/center (40 evaluations) |
+| **5** | Fourier descriptor scoring | DFT-based shape similarity metric (rotation/scale invariant) |
+| **6** | Multi-variant templates | Parametric heart variants with adjusted cusp/lobe geometry |
+| **7** | Iterative worst-segment repair | 3-pass fix cycle with decreasing threshold |
+| **8** | Elastic shape deformation | Gently pulls ideal line towards nearby roads for waypoint placement |
+| **9** | SDF-inspired coverage penalty | Coarse scoring penalises road network gaps along shape |
+| **10** | Multi-start segment routing | Routes from alternative loop start positions for closed shapes |
+
+### Benchmark Results (Heart shape, Reading UK)
+
+| Version | Composite | Frechet | Hausdorff | Coverage | Time |
+|---------|-----------|---------|-----------|----------|------|
+| v8.1 baseline | 63.6 | 93.9m | 111.5m | 31.0 | 123s |
+| v8.2 (all phases) | **50.0** | **62.6m** | **62.8m** | **20.7** | 981s |
+| **Improvement** | **-21%** | **-33%** | **-44%** | **-33%** | -- |
+
+CMA-ES discovered a completely different optimal orientation (104.5 deg vs 240 deg), demonstrating that continuous optimisation finds configurations the grid search misses.
+
+See `docs/results/dashboard.html` for the interactive dashboard with comparison maps.
+
+
 ## License
 
 This project is licensed under the **Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International** (CC BY-NC-SA 4.0).

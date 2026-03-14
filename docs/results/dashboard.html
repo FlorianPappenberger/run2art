@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>run2art - Heart Route Improvement Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body { background: #1a1a2e; color: #eee; font-family: monospace; padding: 24px; }
+    h1 { color: #00ff88; }
+    h2 { color: #aaaaff; border-bottom: 1px solid #333; padding-bottom: 6px; }
+    table { border-collapse: collapse; width: 100%; margin-bottom: 32px; }
+    th { background: #2a2a4e; color: #00ff88; padding: 8px 12px; text-align: left; }
+    td { padding: 8px 12px; border-bottom: 1px solid #2a2a3e; }
+    .improvement { color: #00ff88; font-weight: bold; }
+    .regression  { color: #ff4466; font-weight: bold; }
+    .phase-img   { width: 100%; border-radius: 8px; margin-bottom: 16px;
+                   border: 1px solid #333; }
+    .map-link    { display: inline-block; margin: 6px 8px 6px 0;
+                   padding: 6px 14px; background: #2a2a4e;
+                   color: #00aaff; border-radius: 4px; text-decoration: none; }
+    .map-link:hover { background: #3a3a6e; }
+    canvas       { max-height: 300px; margin-bottom: 40px; }
+  </style>
+</head>
+<body>
+  <h1>run2art - Heart Route Improvement Dashboard</h1>
+
+  <h2>Score Over Time</h2>
+  <canvas id="scoreChart"></canvas>
+
+  <h2>Phase Results</h2>
+  <table id="resultsTable">
+    <thead>
+      <tr>
+        <th>Phase</th><th>Description</th><th>Total Score</th>
+        <th>Hausdorff</th><th>Coverage</th><th>Turning</th>
+        <th>Delta</th><th>Time</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>P0</td><td>Baseline (v8.1)</td>
+        <td>63.6</td><td>111.5</td>
+        <td>31.0</td><td>87.3</td>
+        <td class="">---</td><td>122.6s</td>
+      </tr>
+      <tr>
+        <td>P1</td><td>n_fine=40</td>
+        <td>77.0</td><td>111.5</td>
+        <td>31.0</td><td>87.3</td>
+        <td class="regression">+13.4</td><td>99.6s</td>
+      </tr>
+      <tr>
+        <td>P2</td><td>All</td>
+        <td>50.0</td><td>62.8</td>
+        <td>20.7</td><td>105.4</td>
+        <td class="improvement">-13.6</td><td>980.5s</td>
+      </tr>
+
+    </tbody>
+  </table>
+
+  <h2>Visual Timeline</h2>
+  
+    <h3>Phase 0: Baseline (v8.1)</h3>
+    <img class="phase-img" src="phase_0_comparison.png" alt="Phase 0">
+    <a class="map-link" href="phase_0_routes.html">Interactive Map</a>
+
+    <h3>Phase 1: n_fine=40</h3>
+    <img class="phase-img" src="phase_1_comparison.png" alt="Phase 1">
+    <a class="map-link" href="phase_1_routes.html">Interactive Map</a>
+
+    <h3>Phase 2: All</h3>
+    <img class="phase-img" src="phase_2_comparison.png" alt="Phase 2">
+    <a class="map-link" href="phase_2_routes.html">Interactive Map</a>
+
+
+  <script>
+    new Chart(document.getElementById('scoreChart'), {
+      type: 'line',
+      data: {
+        labels: ["P0", "P1", "P2"],
+        datasets: [{
+          label: 'Heart Shape Score (lower = better)',
+          data: [63.6, 77.0, 50.0],
+          borderColor: '#00ff88',
+          backgroundColor: 'rgba(0,255,136,0.1)',
+          tension: 0.3,
+          pointRadius: 6,
+          pointBackgroundColor: '#00ff88'
+        }]
+      },
+      options: {
+        plugins: {
+          legend: { labels: { color: '#eee' } }
+        },
+        scales: {
+          x: { ticks: { color: '#aaa' }, grid: { color: '#2a2a3e' } },
+          y: { ticks: { color: '#aaa' }, grid: { color: '#2a2a3e' } }
+        }
+      }
+    });
+  </script>
+</body>
+</html>

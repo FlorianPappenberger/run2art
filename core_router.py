@@ -417,6 +417,17 @@ def precompute_edge_weights(G_sub, ideal_line, tangent_field, apex_points,
 
     c_heading = heading_penalty_vectorized(edge_bearings, local_tangents)
 
+    # ── Curvature-adaptive beta (Phase 2) ──
+    # Higher beta at sharp curves forces routes closer to ideal at cusps/clefts
+    if n_seg > 1:
+        bearing_changes = np.abs(np.diff(tf))
+        bearing_changes = np.minimum(bearing_changes, 360.0 - bearing_changes)
+        seg_kappa = np.clip(bearing_changes / 90.0, 0.0, 2.0)
+        edge_kappa = seg_kappa[nearest_seg]
+        local_beta = beta * (1.0 + 2.0 * edge_kappa)
+    else:
+        local_beta = beta
+
     # ── C_uturn: penalty for edges that reverse direction near non-apex areas ──
     near_apex = compute_uturn_mask(G_sub, midpoints, apex_points, apex_radius_m=15.0)
     reverse_dev = np.abs(edge_bearings - local_tangents) % 360.0
@@ -425,8 +436,8 @@ def precompute_edge_weights(G_sub, ideal_line, tangent_field, apex_points,
     c_uturn = np.where(is_reversal & ~near_apex, 5000.0, 0.0)
 
     # ── v8.1 Multiplicative penalty field ──
-    # C = L × H × (1 + β·d²) + heading + uturn
-    base_cost = lengths * hw_mults * (1.0 + beta * c_proximity ** 2)
+    # C = L × H × (1 + β_local·d²) + heading + uturn
+    base_cost = lengths * hw_mults * (1.0 + local_beta * c_proximity ** 2)
     weights = base_cost + w_head * c_heading + w_uturn * c_uturn
 
     # Assign to graph edges
@@ -723,6 +734,29 @@ class CoreRouter:
             f"closed={self.is_closed}, "
             f"corridor={self.G_sub.number_of_nodes() if self.G_sub else 0} nodes")
 
+        # Phase 8: Elastic deformation - pull ideal line towards roads for routing
+        self.routing_line = self._elastic_deform()
+
+    def _elastic_deform(self, alpha=0.15, iterations=2):
+        """Gently deform ideal line towards nearby road nodes for routing.
+
+        Returns deformed line as list of [lat, lng]. Original self.ideal_line
+        is preserved for scoring.
+        """
+        if self.kd_sub is None or self.G_sub is None or self.G_sub.number_of_nodes() < 5:
+            return self.ideal_line
+        il = self.il.copy()
+        tree, coords, _ = self.kd_sub
+        n = len(il)
+        for it in range(iterations):
+            decay = alpha / (it + 1)
+            _, indices = tree.query(il)
+            nearest = coords[indices]
+            # Only deform interior points (preserve start/end for closed shapes)
+            for i in range(1, n - 1):
+                il[i] += decay * (nearest[i] - il[i])
+        return il.tolist()
+
     def _check_closed(self):
         """Check if shape is closed (first ≈ last point)."""
         if len(self.il) < 3:
@@ -756,6 +790,27 @@ class CoreRouter:
 
         # Strategy 2: Soft-constraint segment routing
         route = self._route_segments()
+
+        # Phase 10: Try routing from alternative start positions (beam-like)
+        if self.is_closed and route:
+            best_route = route
+            best_fd = frechet_score(route, self.ideal_line)
+            n_pts = len(self.il)
+            for shift in [n_pts // 3, 2 * n_pts // 3]:
+                shifted_il = self.il[shift:].tolist() + self.il[:shift].tolist()
+                self_backup_il = self.ideal_line
+                self.ideal_line = shifted_il
+                self.il = np.asarray(shifted_il, dtype=np.float64)
+                alt = self._route_segments()
+                self.ideal_line = self_backup_il
+                self.il = np.asarray(self_backup_il, dtype=np.float64)
+                if alt:
+                    alt_fd = frechet_score(alt, self_backup_il)
+                    if alt_fd < best_fd:
+                        best_fd = alt_fd
+                        best_route = alt
+            route = best_route
+
         if route:
             return route
 
@@ -777,8 +832,10 @@ class CoreRouter:
         SKIP_THRESHOLD = 3.0
 
         # Sample ideal line for waypoints (not too dense)
+        # Phase 8: Use elastically deformed routing line for waypoint placement
+        routing_src = self.routing_line if hasattr(self, 'routing_line') else self.ideal_line
         n_wps = min(25, max(8, len(self.il) // 2))
-        wps = sample_polyline(self.ideal_line, n_wps)
+        wps = sample_polyline(routing_src, n_wps)
         wps_a = np.asarray(wps, dtype=np.float64)
 
         # Snap to nearest graph nodes
