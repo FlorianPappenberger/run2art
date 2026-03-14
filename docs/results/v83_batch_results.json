@@ -1,0 +1,636 @@
+{
+  "generated_at": "2026-03-14 17:46:32",
+  "location": "Reading, UK",
+  "center": [
+    51.4543,
+    -0.9781
+  ],
+  "total_tests": 31,
+  "completed": 31,
+  "results": [
+    {
+      "id": "v82_baseline_fit",
+      "label": "v8.2 Baseline Fit",
+      "mode": "fit",
+      "flags": {},
+      "score": 67.3,
+      "route": [],
+      "rotation": 240,
+      "scale": 0.01,
+      "center": [
+        51.4543,
+        -0.9796
+      ],
+      "route_length_m": 6627.0,
+      "route_points": 151,
+      "time_seconds": 140.0,
+      "error": null
+    },
+    {
+      "id": "v82_baseline_opt",
+      "label": "v8.2 Baseline Optimize",
+      "mode": "optimize",
+      "flags": {},
+      "score": 66.0,
+      "route": [],
+      "rotation": 120,
+      "scale": 0.01,
+      "center": [
+        51.4543,
+        -0.9781
+      ],
+      "route_length_m": 6159.0,
+      "route_points": 139,
+      "time_seconds": 681.1,
+      "error": null
+    },
+    {
+      "id": "dynamic_fit",
+      "label": "Dynamic Densify Fit",
+      "mode": "fit",
+      "flags": {
+        "dynamic_densify": true
+      },
+      "score": 69.9,
+      "route": [],
+      "rotation": 120,
+      "scale": 0.01,
+      "center": [
+        51.4543,
+        -0.9781
+      ],
+      "route_length_m": 5887,
+      "route_points": 144,
+      "time_seconds": 32.3,
+      "error": null
+    },
+    {
+      "id": "dynamic_opt",
+      "label": "Dynamic Densify Opt",
+      "mode": "optimize",
+      "flags": {
+        "dynamic_densify": true
+      },
+      "score": 69.9,
+      "route": [],
+      "rotation": 120,
+      "scale": 0.01,
+      "center": [
+        51.4543,
+        -0.9781
+      ],
+      "route_length_m": 5887,
+      "route_points": 144,
+      "time_seconds": 75.2,
+      "error": null
+    },
+    {
+      "id": "spline3_fit",
+      "label": "Spline k=3 Fit",
+      "mode": "fit",
+      "flags": {
+        "spline_k": 3
+      },
+      "score": 68.7,
+      "route": [],
+      "rotation": 120,
+      "scale": 0.01,
+      "center": [
+        51.4543,
+        -0.9781
+      ],
+      "route_length_m": 6482,
+      "route_points": 163,
+      "time_seconds": 28.2,
+      "error": null
+    },
+    {
+      "id": "spline4_fit",
+      "label": "Spline k=4 Fit",
+      "mode": "fit",
+      "flags": {
+        "spline_k": 4
+      },
+      "score": 68.3,
+      "route": [],
+      "rotation": 120,
+      "scale": 0.01,
+      "center": [
+        51.4543,
+        -0.9781
+      ],
+      "route_length_m": 6984,
+      "route_points": 168,
+      "time_seconds": 23.9,
+      "error": null
+    },
+    {
+      "id": "spline5_fit",
+      "label": "Spline k=5 Fit",
+      "mode": "fit",
+      "flags": {
+        "spline_k": 5
+      },
+      "score": 79.5,
+      "route": [],
+      "rotation": 120,
+      "scale": 0.009000000000000001,
+      "center": [
+        51.4543,
+        -0.9781
+      ],
+      "route_length_m": 7851,
+      "route_points": 181,
+      "time_seconds": 21.5,
+      "error": null
+    },
+    {
+      "id": "multires_fit",
+      "label": "Multi-Res Fit",
+      "mode": "fit",
+      "flags": {
+        "multi_res": true
+      },
+      "score": 69.8,
+      "route": [],
+      "rotation": 120,
+      "scale": 0.01,
+      "center": [
+        51.4543,
+        -0.9781
+      ],
+      "route_length_m": 5941,
+      "route_points": 146,
+      "time_seconds": 15.8,
+      "error": null
+    },
+    {
+      "id": "multires_opt",
+      "label": "Multi-Res Opt",
+      "mode": "optimize",
+      "flags": {
+        "multi_res": true
+      },
+      "score": 69.8,
+      "route": [],
+      "rotation": 120,
+      "scale": 0.01,
+      "center": [
+        51.4543,
+        -0.9781
+      ],
+      "route_length_m": 5941,
+      "route_points": 146,
+      "time_seconds": 33.3,
+      "error": null
+    },
+    {
+      "id": "sym02_opt",
+      "label": "Symmetry 0.2 Opt",
+      "mode": "optimize",
+      "flags": {
+        "symmetry_weight": 0.2
+      },
+      "score": 106.5,
+      "route": [],
+      "rotation": 120,
+      "scale": 0.011200000000000002,
+      "center": [
+        51.4543,
+        -0.9781
+      ],
+      "route_length_m": 8576,
+      "route_points": 207,
+      "time_seconds": 51.8,
+      "error": null
+    },
+    {
+      "id": "sym03_opt",
+      "label": "Symmetry 0.3 Opt",
+      "mode": "optimize",
+      "flags": {
+        "symmetry_weight": 0.3
+      },
+      "score": 116.8,
+      "route": [],
+      "rotation": 120,
+      "scale": 0.011200000000000002,
+      "center": [
+        51.4543,
+        -0.9781
+      ],
+      "route_length_m": 8576,
+      "route_points": 207,
+      "time_seconds": 53.4,
+      "error": null
+    },
+    {
+      "id": "sym04_opt",
+      "label": "Symmetry 0.4 Opt",
+      "mode": "optimize",
+      "flags": {
+        "symmetry_weight": 0.4
+      },
+      "score": 127.2,
+      "route": [],
+      "rotation": 120,
+      "scale": 0.011200000000000002,
+      "center": [
+        51.4543,
+        -0.9781
+      ],
+      "route_length_m": 8576,
+      "route_points": 207,
+      "time_seconds": 52.1,
+      "error": null
+    },
+    {
+      "id": "sym05_opt",
+      "label": "Symmetry 0.5 Opt",
+      "mode": "optimize",
+      "flags": {
+        "symmetry_weight": 0.5
+      },
+      "score": 121.3,
+      "route": [],
+      "rotation": 360,
+      "scale": 0.0088,
+      "center": [
+        51.4543,
+        -0.9781
+      ],
+      "route_length_m": 5248,
+      "route_points": 106,
+      "time_seconds": 57.3,
+      "error": null
+    },
+    {
+      "id": "close_fit",
+      "label": "Force Close Fit",
+      "mode": "fit",
+      "flags": {
+        "force_close": true
+      },
+      "score": 69.8,
+      "route": [],
+      "rotation": 120,
+      "scale": 0.01,
+      "center": [
+        51.4543,
+        -0.9781
+      ],
+      "route_length_m": 5941,
+      "route_points": 146,
+      "time_seconds": 21.5,
+      "error": null
+    },
+    {
+      "id": "close_opt",
+      "label": "Force Close Opt",
+      "mode": "optimize",
+      "flags": {
+        "force_close": true
+      },
+      "score": 69.8,
+      "route": [],
+      "rotation": 120,
+      "scale": 0.01,
+      "center": [
+        51.4543,
+        -0.9781
+      ],
+      "route_length_m": 5941,
+      "route_points": 146,
+      "time_seconds": 50.4,
+      "error": null
+    },
+    {
+      "id": "pen15_opt",
+      "label": "Penalty 1.5x Opt",
+      "mode": "optimize",
+      "flags": {
+        "penalty_factor": 1.5
+      },
+      "score": 69.8,
+      "route": [],
+      "rotation": 120,
+      "scale": 0.01,
+      "center": [
+        51.4543,
+        -0.9781
+      ],
+      "route_length_m": 5941,
+      "route_points": 146,
+      "time_seconds": 52.4,
+      "error": null
+    },
+    {
+      "id": "pen20_opt",
+      "label": "Penalty 2.0x Opt",
+      "mode": "optimize",
+      "flags": {
+        "penalty_factor": 2.0
+      },
+      "score": 69.8,
+      "route": [],
+      "rotation": 120,
+      "scale": 0.01,
+      "center": [
+        51.4543,
+        -0.9781
+      ],
+      "route_length_m": 5941,
+      "route_points": 146,
+      "time_seconds": 49.5,
+      "error": null
+    },
+    {
+      "id": "pen25_opt",
+      "label": "Penalty 2.5x Opt",
+      "mode": "optimize",
+      "flags": {
+        "penalty_factor": 2.5
+      },
+      "score": 69.8,
+      "route": [],
+      "rotation": 120,
+      "scale": 0.01,
+      "center": [
+        51.4543,
+        -0.9781
+      ],
+      "route_length_m": 5941,
+      "route_points": 146,
+      "time_seconds": 49.7,
+      "error": null
+    },
+    {
+      "id": "pen30_opt",
+      "label": "Penalty 3.0x Opt",
+      "mode": "optimize",
+      "flags": {
+        "penalty_factor": 3.0
+      },
+      "score": 67.3,
+      "route": [],
+      "rotation": 113,
+      "scale": 0.01,
+      "center": [
+        51.4543,
+        -0.9781
+      ],
+      "route_length_m": 6214,
+      "route_points": 134,
+      "time_seconds": 49.7,
+      "error": null
+    },
+    {
+      "id": "pen40_opt",
+      "label": "Penalty 4.0x Opt",
+      "mode": "optimize",
+      "flags": {
+        "penalty_factor": 4.0
+      },
+      "score": 67.3,
+      "route": [],
+      "rotation": 113,
+      "scale": 0.01,
+      "center": [
+        51.4543,
+        -0.9781
+      ],
+      "route_length_m": 6214,
+      "route_points": 134,
+      "time_seconds": 50.9,
+      "error": null
+    },
+    {
+      "id": "hybrid_fit",
+      "label": "Hybrid v6 Fit",
+      "mode": "fit",
+      "flags": {
+        "hybrid_v6": true
+      },
+      "score": 143.5,
+      "route": [],
+      "rotation": 130,
+      "scale": 0.0063,
+      "center": [
+        51.4543,
+        -0.9661
+      ],
+      "route_length_m": 4494,
+      "route_points": 119,
+      "time_seconds": 16.4,
+      "error": null
+    },
+    {
+      "id": "hybrid_opt",
+      "label": "Hybrid v6 Opt",
+      "mode": "optimize",
+      "flags": {
+        "hybrid_v6": true
+      },
+      "score": 157.2,
+      "route": [],
+      "rotation": 130,
+      "scale": 0.0061600000000000005,
+      "center": [
+        51.4543,
+        -0.9661
+      ],
+      "route_length_m": 4070,
+      "route_points": 108,
+      "time_seconds": 44.4,
+      "error": null
+    },
+    {
+      "id": "v6prox02_opt",
+      "label": "v6 Prox 0.2 Opt",
+      "mode": "optimize",
+      "flags": {
+        "v6_proximity_weight": 0.2
+      },
+      "score": 63.6,
+      "route": [],
+      "rotation": 120,
+      "scale": 0.01,
+      "center": [
+        51.4543,
+        -0.9781
+      ],
+      "route_length_m": 5941,
+      "route_points": 146,
+      "time_seconds": 51.9,
+      "error": null
+    },
+    {
+      "id": "combo_dyn_spline3",
+      "label": "Dynamic+Spline3 Fit",
+      "mode": "fit",
+      "flags": {
+        "dynamic_densify": true,
+        "spline_k": 3
+      },
+      "score": 69.7,
+      "route": [],
+      "rotation": 120,
+      "scale": 0.01,
+      "center": [
+        51.4543,
+        -0.9781
+      ],
+      "route_length_m": 6474,
+      "route_points": 159,
+      "time_seconds": 28.5,
+      "error": null
+    },
+    {
+      "id": "combo_dyn_close",
+      "label": "Dynamic+Close Fit",
+      "mode": "fit",
+      "flags": {
+        "dynamic_densify": true,
+        "force_close": true
+      },
+      "score": 69.9,
+      "route": [],
+      "rotation": 120,
+      "scale": 0.01,
+      "center": [
+        51.4543,
+        -0.9781
+      ],
+      "route_length_m": 5887,
+      "route_points": 144,
+      "time_seconds": 27.8,
+      "error": null
+    },
+    {
+      "id": "combo_hybrid_sym03",
+      "label": "Hybrid+Sym0.3 Opt",
+      "mode": "optimize",
+      "flags": {
+        "hybrid_v6": true,
+        "symmetry_weight": 0.3
+      },
+      "score": 164.2,
+      "route": [],
+      "rotation": 30,
+      "scale": 0.0061600000000000005,
+      "center": [
+        51.4543,
+        -0.9721
+      ],
+      "route_length_m": 5852,
+      "route_points": 156,
+      "time_seconds": 54.1,
+      "error": null
+    },
+    {
+      "id": "combo_multires_spline3",
+      "label": "MultiRes+Spline3 Fit",
+      "mode": "fit",
+      "flags": {
+        "multi_res": true,
+        "spline_k": 3
+      },
+      "score": 68.7,
+      "route": [],
+      "rotation": 120,
+      "scale": 0.01,
+      "center": [
+        51.4543,
+        -0.9781
+      ],
+      "route_length_m": 6482,
+      "route_points": 163,
+      "time_seconds": 19.2,
+      "error": null
+    },
+    {
+      "id": "combo_pen20_sym03",
+      "label": "Pen2.0+Sym0.3 Opt",
+      "mode": "optimize",
+      "flags": {
+        "penalty_factor": 2.0,
+        "symmetry_weight": 0.3
+      },
+      "score": 68.2,
+      "route": [],
+      "rotation": 360,
+      "scale": 0.0088,
+      "center": [
+        51.4543,
+        -0.9781
+      ],
+      "route_length_m": 4985,
+      "route_points": 107,
+      "time_seconds": 52.9,
+      "error": null
+    },
+    {
+      "id": "combo_dyn_hybrid_close",
+      "label": "Dyn+Hybrid+Close Opt",
+      "mode": "optimize",
+      "flags": {
+        "dynamic_densify": true,
+        "hybrid_v6": true,
+        "force_close": true
+      },
+      "score": 152.3,
+      "route": [],
+      "rotation": 130,
+      "scale": 0.0061600000000000005,
+      "center": [
+        51.4543,
+        -0.9661
+      ],
+      "route_length_m": 3876,
+      "route_points": 102,
+      "time_seconds": 56.2,
+      "error": null
+    },
+    {
+      "id": "combo_all_fit",
+      "label": "All Features Fit",
+      "mode": "fit",
+      "flags": {
+        "dynamic_densify": true,
+        "spline_k": 3,
+        "force_close": true,
+        "symmetry_weight": 0.2
+      },
+      "score": 121.9,
+      "route": [],
+      "rotation": 120,
+      "scale": 0.01,
+      "center": [
+        51.4543,
+        -0.9781
+      ],
+      "route_length_m": 6474,
+      "route_points": 159,
+      "time_seconds": 36.5,
+      "error": null
+    },
+    {
+      "id": "abstract_fit",
+      "label": "Abstract Fit",
+      "mode": "abstract_fit",
+      "flags": {},
+      "score": 179.7,
+      "route": [],
+      "rotation": 240,
+      "scale": 0.009,
+      "center": [
+        51.4533,
+        -0.9781
+      ],
+      "route_length_m": 2890.0,
+      "route_points": 56,
+      "time_seconds": 94.6,
+      "error": null
+    }
+  ]
+}

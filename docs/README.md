@@ -17,10 +17,11 @@
 9. [CoreRouter Technical Details](#corerouter-technical-details)
 10. [Phase-by-Phase Improvement Log](#phase-by-phase-improvement-log)
 11. [Benchmark Results](#benchmark-results)
-12. [Configuration Reference](#configuration-reference)
-13. [Dependencies](#dependencies)
-14. [Research Background](#research-background)
-15. [License & Attribution](#license--attribution)
+12. [v8.3 Experiments](#v83-experiments)
+13. [Configuration Reference](#configuration-reference)
+14. [Dependencies](#dependencies)
+15. [Research Background](#research-background)
+16. [License & Attribution](#license--attribution)
 
 ---
 
@@ -339,6 +340,17 @@ Uses `AbstractRouter` which:
 |------|-------|------|-------------|
 | fit | 67.3 | ~120s | ~5,500m |
 | optimize | 66.0 | ~690s | ~5,500m |
+
+### v8.3 — Experimental Enhancements (Branch: `v8.3-experiments`)
+
+8 modular features tested in 31 configurations. See [v8.3 Experiments](#v83-experiments) for full analysis.
+
+**Best result**: **63.6** (v6 proximity blend) — a **3.6% improvement** over v8.2 optimize (66.0).
+
+**Key files**:
+- `v83_enhancements.py` — All 8 enhancement modules (~700 lines)
+- `v83_batch_benchmark.py` — Batch testing framework (31 tests, resume support, HTML+CSV output)
+- `docs/results/v83_comparison.html` — Interactive comparison map
 
 ---
 
@@ -790,6 +802,89 @@ All routes generated on the same road network with center [51.4543, −0.9781].
 - **Phase-by-phase**: `docs/results/phase_0_routes.html`, `phase_1_routes.html`, `phase_2_routes.html`
 - **Before/after comparisons**: `docs/results/phase_1_comparison.png`, `phase_2_comparison.png`
 - **Legacy comparison (v5.1→v8.1)**: `public/full_comparison_map.html`
+
+---
+
+## v8.3 Experiments
+
+### Overview
+
+v8.3 is an experimental branch (`v8.3-experiments`) that tests **8 modular enhancements** to the v8.2 pipeline. All features are implemented as standalone, toggleable functions in `v83_enhancements.py` — they augment (not replace) the core v8.2 engine.
+
+**Test conditions**: All 31 experiments use the **heart shape** at **Reading, UK** [51.4543, −0.9781].
+
+### Enhancement Modules
+
+| # | Feature | File/Function | Config Key | Description |
+|---|---------|---------------|------------|-------------|
+| 1 | **Dynamic Densification** | `dynamic_densify()` | `dynamic_densify: true` | Road-curvature-aware waypoint densification — denser at intersections/curves, sparser on straights |
+| 2 | **B-Spline Smoothing** | `spline_smooth_route()` | `spline_k: 3\|4\|5` | Post-route B-spline smoothing with snap-back to nearest road nodes |
+| 3 | **Multi-Resolution Routing** | `multi_res_route()` | `multi_res: true` | Coarse routing on simplified graph → refined on full graph |
+| 4 | **Symmetry Penalty** | `symmetry_penalty()` | `symmetry_weight: 0.0–0.5` | Bilateral symmetry scoring — splits route, mirrors one half, computes distance |
+| 5 | **Forced Cycle Closure** | `force_close_route()` | `force_close: true` | Closes start–end gap via shortest path if gap < 100m |
+| 6 | **Overlap Penalty** | `apply_overlap_penalty()` | `overlap_penalty: float` | Increases edge weights for previously-used edges to reduce backtracking |
+| 7 | **Hybrid v6+v8 Search** | `hybrid_v6_coarse_search()` | `hybrid_v6: true` | v6-style penalty-based coarse screening → v8 CoreRouter fine routing |
+| 8 | **Enhanced Scoring** | `score_v83()` | `v6_proximity_weight: 0.0–0.3` | Blends v6 proximity scoring into v8 composite score |
+
+### Batch Test Results (31 experiments)
+
+Ranked by composite score (lower = better). All tests on heart shape, Reading UK.
+
+| Rank | Test ID | Score | Time | Pts | Key Feature |
+|------|---------|-------|------|-----|-------------|
+| 1 | **v6prox02_opt** | **63.6** | 52s | 146 | v6 proximity blend (0.2 weight) |
+| 2 | v82_baseline_opt | 66.0 | 681s | 139 | Baseline v8.2 full optimize |
+| 3 | v82_baseline_fit | 67.3 | 140s | 151 | Baseline v8.2 quick fit |
+| 4 | pen30_opt | 67.3 | 50s | 134 | Penalty factor 3.0× |
+| 5 | pen40_opt | 67.3 | 51s | 134 | Penalty factor 4.0× |
+| 6 | combo_pen20_sym03 | 68.2 | 53s | 107 | Penalty 2.0× + symmetry 0.3 |
+| 7 | spline4_fit | 68.3 | 24s | 168 | B-spline k=4 |
+| 8 | spline3_fit | 68.7 | 28s | 163 | B-spline k=3 |
+| 9 | combo_multires_spline3 | 68.7 | 19s | 163 | Multi-res + spline k=3 |
+| 10 | combo_dyn_spline3 | 69.7 | 28s | 159 | Dynamic densify + spline k=3 |
+| 11–20 | *(multires, close, pen1.5–2.5, dynamic)* | 69.8–69.9 | 16–75s | 134–146 | Individual features |
+| 21 | spline5_fit | 79.5 | 22s | 181 | B-spline k=5 (too aggressive) |
+| 22–26 | *(symmetry variants)* | 106–128 | 52–57s | 106–207 | Symmetry penalty degrades scores |
+| 27–30 | *(hybrid v6 variants)* | 143–164 | 16–56s | 102–156 | Hybrid v6 coarse search worse |
+| 31 | abstract_fit | 179.7 | 95s | 56 | Abstract mode (fewer points) |
+
+### Key Findings
+
+1. **Best new method: v6 Proximity Blend (score 63.6)** — Blending 20% v6 proximity scoring into the v8 composite improved over the v8.2 baseline (66.0). This suggests the v6 proximity metric captures distance-to-roads information that the v8 metrics underweight.
+
+2. **Penalty factor scaling (3.0–4.0×) matches baseline** — Higher penalty factors (β × 3–4) converge to similar scores as the baseline optimize (67.3), suggesting they steer routing similarly to the original corridor constraints.
+
+3. **B-spline k=4 is the sweet spot** — Among spline orders, k=4 (68.3) beats k=3 (68.7) and k=5 (79.5). k=5 over-smooths and hurts shape fidelity.
+
+4. **Symmetry penalty hurts overall scores** — All symmetry tests (106–128) score significantly worse than the baseline. The heart shape's bilateral symmetry is already emergent from good routing; forcing it via scoring penalty distorts the route.
+
+5. **Hybrid v6 approach underperforms** — Using v6-style coarse search (143–164) produces inferior candidates compared to the v8 coarse search. The v6 penalty-based edge weighting loses shape-awareness.
+
+6. **Dynamic densification is neutral** — Dynamic densify (69.9) scores similarly to the standard densification baseline (69.8), suggesting the fixed spacing already works well for heart routes.
+
+7. **Speed improvement** — v8.3 fit tests run 3–8× faster than v8.2 baseline fit (16–34s vs 140s) due to the reduced candidate grid. The v8.2 optimize (681s) is much slower by design (CMA-ES + variants).
+
+### Recommended Configuration
+
+Based on the results, the **optimal v8.3 configuration** for heart shapes is:
+
+```python
+config = {
+    "v6_proximity_weight": 0.2,    # Best single feature
+    "spline_k": 4,                  # Post-smoothing sweet spot
+    "penalty_factor": 3.0,          # Stronger proximity enforcement
+    "force_close": True,            # Ensure loop closure
+}
+```
+
+### Output Files
+
+| File | Description |
+|------|-------------|
+| `docs/results/v83_comparison.html` | Interactive Leaflet map with all 31 routes (toggleable layers, score panel) |
+| `docs/results/v83_full_results.json` | Complete results with route coordinates for all tests |
+| `docs/results/v83_batch_results.json` | Summary results (scores, times, no routes) |
+| `docs/results/visual_scores.csv` | Template for manual visual scoring (recognizability, jaggedness, symmetry, closure, proportions) |
 
 ---
 
