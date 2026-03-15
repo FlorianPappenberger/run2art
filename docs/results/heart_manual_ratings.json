@@ -1,0 +1,302 @@
+{
+  "exported": "2026-03-15T14:25:12.072Z",
+  "ratings": {
+    "v85_wide_2km": 1,
+    "v82_baseline_fit": 8,
+    "v84_density_opt": 1,
+    "v85_wide_hier": 1,
+    "v85_wide_hier_pen30": 1,
+    "v85_wide_hier_skel": 1,
+    "v85_wide_full": 1,
+    "indent_sym05_pen30": 7,
+    "v84_hier_pen20": 7,
+    "v84_hier_pen30": 4,
+    "v85_wide_6km": 1,
+    "v82_baseline_opt": 1,
+    "v84_hierarchy_fit": 4,
+    "v84_skel_hier_fit": 6,
+    "v84_full_opt": 1,
+    "v84_dens_hier_skel": 1,
+    "v84_density_fit": 1,
+    "v6prox02_opt": 3,
+    "indent_pen20_opt": 3,
+    "v84_full_fit": 1,
+    "v85_wide_pen20": 1,
+    "v85_wide_default": 1,
+    "v84_skel_hier_opt": 4,
+    "v84_hierarchy_opt": 4,
+    "full_heart_opt": 4,
+    "pen30_opt": 4,
+    "indent_sym05_dyn_close": 3,
+    "indent_sym05_dyn": 4,
+    "indent_fit": 7,
+    "indent_sym05_fit": 7,
+    "indent_sym05_close_fit": 7,
+    "indent_sym05_pen15": 6,
+    "v84_skel_fit": 5,
+    "sym05_opt": 3,
+    "indent_sym05_spline3": 4,
+    "indent_sym05_pen20": 5,
+    "indent_opt": 5,
+    "v84_skel_spline_fit": 4,
+    "v84_hier_dyn_opt": 5,
+    "v84_ph_fit": 5,
+    "full_heart_fit": 4,
+    "indent_close_opt": 4,
+    "indent_sym05_close_opt": 5,
+    "indent_sym05_opt": 5,
+    "v84_percep_opt": 5,
+    "v84_fgw_opt": 5,
+    "v84_ph_opt": 5,
+    "v84_skel_opt": 5,
+    "v84_ph_skel_opt": 5,
+    "v84_percep_ph_opt": 5,
+    "v84_skel_b20": 5,
+    "v84_skel_b40": 5,
+    "v6.0_optimize": 2,
+    "v6.0_fit": 4,
+    "v7.0_fit": 5,
+    "v5.1_optimize": 1,
+    "v8.1_abstract_optimize": 1,
+    "v5.1_fit": 6,
+    "v8.1_abstract_fit": 1
+  },
+  "summary": [
+    {
+      "id": "v82_baseline_fit",
+      "rating": 8
+    },
+    {
+      "id": "indent_sym05_pen30",
+      "rating": 7
+    },
+    {
+      "id": "v84_hier_pen20",
+      "rating": 7
+    },
+    {
+      "id": "indent_fit",
+      "rating": 7
+    },
+    {
+      "id": "indent_sym05_fit",
+      "rating": 7
+    },
+    {
+      "id": "indent_sym05_close_fit",
+      "rating": 7
+    },
+    {
+      "id": "v84_skel_hier_fit",
+      "rating": 6
+    },
+    {
+      "id": "indent_sym05_pen15",
+      "rating": 6
+    },
+    {
+      "id": "v5.1_fit",
+      "rating": 6
+    },
+    {
+      "id": "v84_skel_fit",
+      "rating": 5
+    },
+    {
+      "id": "indent_sym05_pen20",
+      "rating": 5
+    },
+    {
+      "id": "indent_opt",
+      "rating": 5
+    },
+    {
+      "id": "v84_hier_dyn_opt",
+      "rating": 5
+    },
+    {
+      "id": "v84_ph_fit",
+      "rating": 5
+    },
+    {
+      "id": "indent_sym05_close_opt",
+      "rating": 5
+    },
+    {
+      "id": "indent_sym05_opt",
+      "rating": 5
+    },
+    {
+      "id": "v84_percep_opt",
+      "rating": 5
+    },
+    {
+      "id": "v84_fgw_opt",
+      "rating": 5
+    },
+    {
+      "id": "v84_ph_opt",
+      "rating": 5
+    },
+    {
+      "id": "v84_skel_opt",
+      "rating": 5
+    },
+    {
+      "id": "v84_ph_skel_opt",
+      "rating": 5
+    },
+    {
+      "id": "v84_percep_ph_opt",
+      "rating": 5
+    },
+    {
+      "id": "v84_skel_b20",
+      "rating": 5
+    },
+    {
+      "id": "v84_skel_b40",
+      "rating": 5
+    },
+    {
+      "id": "v7.0_fit",
+      "rating": 5
+    },
+    {
+      "id": "v84_hier_pen30",
+      "rating": 4
+    },
+    {
+      "id": "v84_hierarchy_fit",
+      "rating": 4
+    },
+    {
+      "id": "v84_skel_hier_opt",
+      "rating": 4
+    },
+    {
+      "id": "v84_hierarchy_opt",
+      "rating": 4
+    },
+    {
+      "id": "full_heart_opt",
+      "rating": 4
+    },
+    {
+      "id": "pen30_opt",
+      "rating": 4
+    },
+    {
+      "id": "indent_sym05_dyn",
+      "rating": 4
+    },
+    {
+      "id": "indent_sym05_spline3",
+      "rating": 4
+    },
+    {
+      "id": "v84_skel_spline_fit",
+      "rating": 4
+    },
+    {
+      "id": "full_heart_fit",
+      "rating": 4
+    },
+    {
+      "id": "indent_close_opt",
+      "rating": 4
+    },
+    {
+      "id": "v6.0_fit",
+      "rating": 4
+    },
+    {
+      "id": "v6prox02_opt",
+      "rating": 3
+    },
+    {
+      "id": "indent_pen20_opt",
+      "rating": 3
+    },
+    {
+      "id": "indent_sym05_dyn_close",
+      "rating": 3
+    },
+    {
+      "id": "sym05_opt",
+      "rating": 3
+    },
+    {
+      "id": "v6.0_optimize",
+      "rating": 2
+    },
+    {
+      "id": "v85_wide_2km",
+      "rating": 1
+    },
+    {
+      "id": "v84_density_opt",
+      "rating": 1
+    },
+    {
+      "id": "v85_wide_hier",
+      "rating": 1
+    },
+    {
+      "id": "v85_wide_hier_pen30",
+      "rating": 1
+    },
+    {
+      "id": "v85_wide_hier_skel",
+      "rating": 1
+    },
+    {
+      "id": "v85_wide_full",
+      "rating": 1
+    },
+    {
+      "id": "v85_wide_6km",
+      "rating": 1
+    },
+    {
+      "id": "v82_baseline_opt",
+      "rating": 1
+    },
+    {
+      "id": "v84_full_opt",
+      "rating": 1
+    },
+    {
+      "id": "v84_dens_hier_skel",
+      "rating": 1
+    },
+    {
+      "id": "v84_density_fit",
+      "rating": 1
+    },
+    {
+      "id": "v84_full_fit",
+      "rating": 1
+    },
+    {
+      "id": "v85_wide_pen20",
+      "rating": 1
+    },
+    {
+      "id": "v85_wide_default",
+      "rating": 1
+    },
+    {
+      "id": "v5.1_optimize",
+      "rating": 1
+    },
+    {
+      "id": "v8.1_abstract_optimize",
+      "rating": 1
+    },
+    {
+      "id": "v8.1_abstract_fit",
+      "rating": 1
+    }
+  ]
+}
