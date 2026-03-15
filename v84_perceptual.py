@@ -153,7 +153,7 @@ def _check_skeleton_deps():
     if _SKEL_AVAILABLE is not None:
         return _SKEL_AVAILABLE
     try:
-        from skimage.morphology import skeletonize    # noqa: F401
+        from skimage.morphology import skeletonize    # noqa: F401  # type: ignore[import-untyped]
         from scipy.spatial.distance import directed_hausdorff  # noqa: F401
         _SKEL_AVAILABLE = True
     except ImportError:
@@ -187,7 +187,7 @@ def _rasterize_polyline(pts, img_size=128):
 
 def _extract_skeleton(pts, img_size=128):
     """Return skeleton pixel coordinates from a polyline."""
-    from skimage.morphology import skeletonize
+    from skimage.morphology import skeletonize  # type: ignore[import-untyped]
     bimg = _rasterize_polyline(pts, img_size)
     skel = skeletonize(bimg)
     ys, xs = np.where(skel)
@@ -243,7 +243,7 @@ def _check_ot_deps():
     if _OT_AVAILABLE is not None:
         return _OT_AVAILABLE
     try:
-        import ot   # noqa: F401
+        import ot   # noqa: F401  # type: ignore[import-not-found]
         _OT_AVAILABLE = True
     except Exception:
         log("[v8.4-fgw] POT library not available — FGW score disabled")
@@ -271,7 +271,7 @@ def fgw_score(route, ideal_pts, alpha=0.5, weight=1.0):
     """
     if not _check_ot_deps():
         return 0.0
-    import ot
+    import ot  # type: ignore[import-not-found]
 
     # Sub-sample both to same size
     n_sample = 80
@@ -317,9 +317,9 @@ def _check_perceptual_deps():
     if _PERCEPTUAL_AVAILABLE is not None:
         return _PERCEPTUAL_AVAILABLE
     try:
-        import torch                              # noqa: F401
-        from torchvision.models import mobilenet_v3_small  # noqa: F401
-        from torchvision import transforms        # noqa: F401
+        import torch                              # noqa: F401  # type: ignore[import-not-found]
+        from torchvision.models import mobilenet_v3_small  # noqa: F401  # type: ignore[import-not-found]
+        from torchvision import transforms        # noqa: F401  # type: ignore[import-not-found]
         _PERCEPTUAL_AVAILABLE = True
     except Exception:
         log("[v8.4-percep] torch/torchvision not available — "
@@ -333,8 +333,8 @@ def _get_perceptual_model():
     global _PERCEPTUAL_MODEL
     if _PERCEPTUAL_MODEL is not None:
         return _PERCEPTUAL_MODEL
-    import torch
-    from torchvision.models import mobilenet_v3_small
+    import torch  # type: ignore[import-not-found]
+    from torchvision.models import mobilenet_v3_small  # type: ignore[import-not-found]
     _PERCEPTUAL_MODEL = mobilenet_v3_small(
         weights='DEFAULT').eval()
     for p in _PERCEPTUAL_MODEL.parameters():
@@ -368,8 +368,8 @@ def _render_route_image(pts, img_size=224):
 
 def _image_to_embedding(img):
     """Run image through MobileNet, return embedding tensor."""
-    import torch
-    from torchvision import transforms
+    import torch  # type: ignore[import-not-found]
+    from torchvision import transforms  # type: ignore[import-not-found]
 
     preproc = transforms.Compose([
         transforms.Resize((224, 224)),
@@ -401,7 +401,7 @@ def perceptual_heart_score(route, ideal_pts, weight=1.0):
     """
     if not _check_perceptual_deps():
         return 0.0
-    import torch
+    import torch  # type: ignore[import-not-found]
 
     route_img = _render_route_image(route)
     route_emb = _image_to_embedding(route_img)
@@ -426,7 +426,7 @@ def _check_ph_deps():
     if _PH_AVAILABLE is not None:
         return _PH_AVAILABLE
     try:
-        import gudhi   # noqa: F401
+        import gudhi   # noqa: F401  # type: ignore[import-not-found]
         _PH_AVAILABLE = True
     except ImportError:
         log("[v8.4-ph] gudhi not available — PH topology score disabled")
@@ -439,7 +439,7 @@ def _compute_persistence_diagram(pts, max_edge_m=300):
 
     Uses Rips complex on normalised coordinates.
     """
-    import gudhi
+    import gudhi  # type: ignore[import-not-found]
 
     pa = np.asarray(pts, dtype=np.float64)
     # Sub-sample for speed
@@ -478,7 +478,7 @@ def ph_topology_score(route, ideal_pts, weight=1.0):
     """
     if not _check_ph_deps():
         return 0.0
-    import gudhi
+    import gudhi  # type: ignore[import-not-found]
 
     diag_route = _compute_persistence_diagram(route)
     diag_ideal = _compute_persistence_diagram(ideal_pts)
