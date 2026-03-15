@@ -20,8 +20,9 @@
 12. [v8.3 Experiments](#v83-experiments)
 13. [Configuration Reference](#configuration-reference)
 14. [Dependencies](#dependencies)
-15. [Research Background](#research-background)
-16. [License & Attribution](#license--attribution)
+15. [Available LLM Models](#available-llm-models)
+16. [Research Background](#research-background)
+17. [License & Attribution](#license--attribution)
 
 ---
 
@@ -87,9 +88,19 @@ D:\GPS Art\
 ├── scoring_v8.py              # v8 scoring: Fréchet + Hausdorff + Fourier + 4 more
 ├── scoring.py                 # Legacy 6-component bidirectional scorer
 ├── geometry.py                # Haversine, shape transforms, densification, tangent field
-├── routing.py                 # Graph fetch (osmnx), corridor builder, A* router
+├── routing.py                 # Graph fetch (osmnx), corridor builder, A* router, open-space mode
 ├── server.js                  # Node.js HTTP server & API proxy
 ├── package.json               # Node.js manifest
+├── requirements.txt           # Python dependencies
+│
+├── v83_enhancements.py        # v8.3 dynamic densification, B-spline, multi-res, symmetry penalties
+├── v84_perceptual.py          # v8.4 hierarchy bonus, skeleton/FGW/perceptual/PH scoring
+├── v85_wide_search.py         # v8.5 wide-corridor pipeline, HR v1 + v2 scorers
+├── v86_open_experiments.py    # v8.6 alternative blueprints, genetic algorithm search
+├── v87_llm_planner.py         # v8.7 AI-driven route planning via Ollama LLM
+│
+├── v83_batch_benchmark.py     # Batch testing framework (72+ tests, resume, HTML+CSV)
+├── _gen_hr_plot.py            # Heart recognizability ranking page generator
 │
 ├── engine_v5.py               # Archived engine v5.1
 ├── engine_v6.py               # Archived engine v6.0
@@ -351,6 +362,73 @@ Uses `AbstractRouter` which:
 - `v83_enhancements.py` — All 8 enhancement modules (~700 lines)
 - `v83_batch_benchmark.py` — Batch testing framework (31 tests, resume support, HTML+CSV output)
 - `docs/results/v83_comparison.html` — Interactive comparison map
+
+### v8.4 — Perceptual & Road-Aware Layer
+
+6 optional perceptual scoring features, each toggled via config flags. All heavy imports are deferred so missing packages never crash the pipeline.
+
+**Features**:
+| # | Feature | Flag | Description |
+|---|---------|------|-------------|
+| 1 | Road-Density Auto-Scaling | `density_auto_scale` | Grid-searches for denser road pockets, shifts center if local density is low |
+| 2 | Road-Hierarchy Bonus | `use_road_hierarchy` | Multiplies edge weights by highway type: footway/path ×0.75, primary ×1.30, motorway ×5.0 |
+| 3 | Medial-Axis Skeleton Score | `use_skeleton_score` | Hausdorff distance between skeletonised route and ideal shape images (requires scikit-image) |
+| 4 | Fused Gromov-Wasserstein | `use_fgw` | Geometry + internal structure matching via POT library |
+| 5 | Perceptual Loss (MobileNet) | `use_perceptual_loss` | Cosine distance between MobileNetV3-Small embeddings (requires torch) |
+| 6 | Persistent Homology | `use_ph_topology` | Bottleneck distance on H1 diagrams, loop-count penalty (requires gudhi) |
+
+**Best result**: `v84_skel_hier_opt` — Skeleton + Hierarchy combo.
+
+**Key file**: `v84_perceptual.py`
+
+### v8.5 — Wide-Area Multi-Scale Search
+
+Replaces the fixed coarse grid with a multi-scale cascading search that sweeps a wide geographic area.
+
+**Pipeline**: 200+ coarse candidates (multi-offset, multi-scale) → 30 refine → 10 fine CoreRouter evaluations → best route.
+
+**Key additions**:
+- `wide_search_pipeline()` — configurable km range (2–6 km), offset steps, candidate counts
+- `route_heart_recognizability()` — HR v1 scorer: template-based 0–10 score from closure, symmetry, deviation, lobes, indent, cusp, smoothness
+- `route_heart_recognizability_v2()` — HR v2 scorer: retrace-penalised, calibrated against manual ratings. Weights: `0.35·raw + 2.8·sym + 1.6·lobes + 1.1·cusp − 6.0·seg_repeat − 2.5·pt_repeat − 0.012·routing_score`
+
+**Best result**: `v85_wide_hier` — HR=7.8 (rank #1 by HR v1).
+
+**Key file**: `v85_wide_search.py` | `docs/results/hr_ranking.html`
+
+### v8.6 — Open-Space Blueprints & Genetic Algorithm
+
+Expands beyond the fixed `walk` graph and single heart blueprint. Two innovations:
+
+1. **Alternative heart blueprints**: valentine (parametric), cardioid, taubin-like (algebraic), lowpoly (16-vertex), raster-contour variants (PNG render → polar boundary extraction)
+2. **Genetic Algorithm parameter search**: evolutionary optimisation over rotation, scale, lat/lng offset with elitist selection + Gaussian crossover-mutation
+3. **Open-space graph mode**: `network_type='all_public'` + custom OSM filter for footway/path/cycleway/bridleway/steps, with fallback to walk graph
+
+**Top results** (72 total tests):
+| Test | Score | HR | HR2 | Rank |
+|------|-------|----|-----|------|
+| `v86_open_taubin_ga` | 36.6 | 6.8 | 6.7 | #1 by HR2 |
+| `v86_open_lowpoly_fit` | 107.1 | 7.3 | 5.6 | #8 |
+| `v86_open_png_ga` | 44.4 | 6.3 | 5.6 | #9 |
+
+**Key files**: `v86_open_experiments.py` | `routing.py` (open_space mode)
+
+### v8.7 — AI-Driven Route Planning (Ollama LLM)
+
+Uses a remote Ollama LLM server to generate heart-shaped GPS art waypoints that are then snapped to the OSM road graph and stitched via shortest-path routing.
+
+**Architecture**:
+1. Structured prompt with parametric heart guidance, location constraints, and strict JSON output format
+2. LLM generates primary + alternative route variants (60–120 waypoints each)
+3. Waypoints validated against UK bounding box, snapped to nearest graph node (max 600m)
+4. Consecutive waypoints connected via `nx.shortest_path(G, weight='length')`
+5. Loop closed, HR/HR2 scored identically to all other methods
+
+**Model**: `qwen3-coder-next:latest` (80B, Q4_K_M) — chosen for structured JSON output quality.
+**Server**: Remote Ollama instance with Basic auth (configurable via `OLLAMA_URL` / `OLLAMA_USER` / `OLLAMA_PASS` env vars).
+**Parallelism**: LLM API call is pre-fetched in a background thread while graph loads and non-LLM tests run, eliminating wait time.
+
+**Key file**: `v87_llm_planner.py`
 
 ---
 
@@ -949,6 +1027,10 @@ config = {
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `PORT` | `3000` | HTTP server port |
+| `OLLAMA_URL` | `https://llms.ecmwf-puserbr.compute.cci1.ecmwf.int/api/generate` | Ollama API endpoint (v8.7) |
+| `OLLAMA_MODEL` | `qwen3-coder-next:latest` | LLM model name for route planning (v8.7) |
+| `OLLAMA_USER` | `florian` | Basic auth username for Ollama server (v8.7) |
+| `OLLAMA_PASS` | — | Basic auth password for Ollama server (v8.7) |
 
 ---
 
@@ -979,6 +1061,31 @@ No external dependencies. Uses only built-in `http`, `fs`, `path`, and `child_pr
 |---------|---------|-----|
 | Leaflet.js | 1.9.4 | unpkg.com |
 | OpenStreetMap / CARTO tiles | — | Various |
+
+---
+
+## Available LLM Models
+
+The remote Ollama server provides these models for v8.7 AI-driven route planning:
+
+| Model | Parameters | Quantisation | Recommended For |
+|-------|-----------|-------------|-----------------|
+| **`qwen3-coder-next:latest`** | 79.7B | Q4_K_M | **Default** — best structured JSON output, strong spatial reasoning |
+| `qwen3-next:80b` | 79.7B | Q4_K_M | General purpose, similar quality to coder variant |
+| `llama4:scout` | 108.6B | Q4_K_M | Largest model; strong instruction following |
+| `llama3.1:70b` | 70.6B | Q4_K_M | Good all-rounder, fast for its size |
+| `qwen3.5:35b` | 36.0B | Q4_K_M | Faster inference, moderate quality |
+| `qwen3-coder:30b` | 30.5B | Q4_K_M | Coding-focused, fast |
+| `qwen3:30b-a3b` | 30.5B | Q4_K_M | General MoE, fast |
+| `llama3:70b` | 70.6B | Q4_0 | Older Llama, still capable |
+| `hermes3:latest` | 8.0B | Q4_0 | Small, fast but lower quality |
+| `qwen2.5:latest` | 7.6B | Q4_K_M | Small general Qwen |
+| `mistral:latest` | 7.2B | Q4_K_M | Small, fast |
+| `llama3.1:latest` | 8.0B | Q4_K_M | Small Llama |
+| `llama2:7b` | 7B | Q4_0 | Legacy |
+| `tinyllama:1.1b` | 1B | Q4_0 | Too small for structured GPS output |
+
+To change model in the benchmark, edit the `llm_model` flag in the v8.7 test configs in `v83_batch_benchmark.py`, or set `OLLAMA_MODEL` environment variable.
 
 ---
 

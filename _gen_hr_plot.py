@@ -10,21 +10,32 @@ import sys
 import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from v85_wide_search import route_heart_recognizability
+from v85_wide_search import (
+  route_heart_recognizability,
+  route_heart_recognizability_v2,
+)
 
 RESULTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "docs", "results")
 
 data = json.load(open(os.path.join(RESULTS_DIR, "v83_full_results.json")))
 results = data["results"]
 
-# Recalculate HR scores with fixed symmetry scorer
-print("Recalculating HR scores with fixed symmetry...")
+# Recalculate both HR scores with the latest scorers
+print("Recalculating HR and HR2 scores...")
 for r in results:
-    route = r.get("route")
-    if route and len(route) >= 4:
-        hr, explain = route_heart_recognizability(route, n_sample=100)
-        r["heart_recognizability"] = round(hr, 1)
-        r["hr_explanation"] = explain
+  route = r.get("route")
+  if route and len(route) >= 4:
+    hr, explain = route_heart_recognizability(route, n_sample=100)
+    hr2, explain2 = route_heart_recognizability_v2(
+      route,
+      routing_score=r.get("score"),
+      mode=r.get("mode"),
+      n_sample=100,
+    )
+    r["heart_recognizability"] = round(hr, 1)
+    r["hr_explanation"] = explain
+    r["heart_recognizability_v2"] = round(hr2, 1)
+    r["hr2_explanation"] = explain2
 
 # Also update the full results file
 with open(os.path.join(RESULTS_DIR, "v83_full_results.json"), "w") as f:
@@ -45,6 +56,8 @@ for r in results_with_hr:
         "score": r.get("score"),
         "hr": r.get("heart_recognizability"),
         "hr_explain": r.get("hr_explanation", ""),
+        "hr2": r.get("heart_recognizability_v2"),
+        "hr2_explain": r.get("hr2_explanation", ""),
         "mode": r.get("mode"),
         "time_seconds": r.get("time_seconds"),
         "route_points": r.get("route_points", len(r.get("route", []))),
@@ -57,7 +70,7 @@ html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Heart Routes — HR Ranking + Manual Ratings</title>
+<title>Heart Routes — HR + HR2 Ranking + Manual Ratings</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
@@ -149,7 +162,7 @@ html = f"""<!DOCTYPE html>
 <body>
 
 <div class="header">
-  <h1>Heart Routes &mdash; HR Ranking + Manual Ratings</h1>
+  <h1>Heart Routes &mdash; HR + HR2 Ranking + Manual Ratings</h1>
   <div class="sub">{len(results_with_hr)} routes &bull; Reading, UK &bull; Click stars to rate how much each looks like a heart</div>
 </div>
 
@@ -157,10 +170,12 @@ html = f"""<!DOCTYPE html>
   <label>Sort by:</label>
   <select id="sortBy" onchange="reSort()">
     <option value="hr" selected>Auto HR Score (highest)</option>
+    <option value="hr2">Auto HR2 Score (manual-aligned)</option>
     <option value="manual">Your Rating (highest)</option>
     <option value="score">Routing Score (lowest)</option>
     <option value="combined">Combined (HR/score)</option>
     <option value="diff">Biggest disagreement (|yours - auto|)</option>
+    <option value="diff2">Biggest disagreement vs HR2</option>
   </select>
   <label>Filter:</label>
   <select id="filterBy" onchange="reSort()">
@@ -222,7 +237,7 @@ function exportRatings() {{
   const blob = new Blob([JSON.stringify(exportData, null, 2)], {{type: 'application/json'}});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url; a.download = 'heart_manual_ratings.json';
+  a.href = url; a.download = 'docs/results/heart_manual_ratings.json';
   a.click(); URL.revokeObjectURL(url);
 }}
 
@@ -287,7 +302,7 @@ allRoutes.forEach(r => {{
   allBounds.push(...ll);
   const color = hrColor(r.hr || 0);
   const poly = L.polyline(ll, {{ color, weight: 2.5, opacity: 0.7 }});
-  poly.bindPopup(`<b>${{r.label}}</b><br>HR: ${{r.hr}}/10<br>Score: ${{r.score}}m`);
+  poly.bindPopup(`<b>${{r.label}}</b><br>HR: ${{r.hr}}/10<br>HR2: ${{r.hr2 ?? '\u2014'}}/10<br>Score: ${{r.score}}m`);
   poly.addTo(bigMap);
 }});
 if (allBounds.length) bigMap.fitBounds(L.latLngBounds(allBounds), {{padding: [30, 30]}});
@@ -355,7 +370,9 @@ function renderCards(routes) {{
 
   routes.forEach((r, idx) => {{
     const hr = r.hr || 0;
+    const hr2 = r.hr2 || 0;
     const color = hrColor(hr);
+    const color2 = hrColor(hr2);
     const bd = parseBreakdown(r.hr_explain);
     const manualRating = getRating(r.id);
 
@@ -373,6 +390,11 @@ function renderCards(routes) {{
             HR ${{hr}}/10${{bd.raw != null ? ' (raw:'+bd.raw+' abs:'+bd.abstract+')' : ''}}
           </div>
         </div>
+        <div class="hr-bar-container">
+          <div class="hr-bar" style="width:${{hr2 * 10}}%;background:${{color2}}">
+            HR2 ${{hr2}}/10
+          </div>
+        </div>
         <div class="manual-rating">
           <span class="label">Your rating:</span>
           ${{buildStarsHTML(r.id)}}
@@ -384,6 +406,7 @@ function renderCards(routes) {{
         </div>
         <div class="meta">
           <span>Score: ${{r.score != null ? r.score + 'm' : '\\u2014'}}</span>
+          <span>HR2: ${{r.hr2 != null ? r.hr2 + '/10' : '\u2014'}}</span>
           <span>Mode: ${{r.mode}}</span>
           <span>Time: ${{r.time_seconds || '\\u2014'}}s</span>
           <span>Pts: ${{r.route_points || r.route?.length || 0}}</span>
@@ -430,6 +453,8 @@ function reSort() {{
 
   if (sortBy === 'hr') {{
     filtered.sort((a, b) => (b.hr || 0) - (a.hr || 0));
+  }} else if (sortBy === 'hr2') {{
+    filtered.sort((a, b) => (b.hr2 || 0) - (a.hr2 || 0));
   }} else if (sortBy === 'manual') {{
     filtered.sort((a, b) => {{
       const ra = ratings[a.id] || 0;
@@ -442,6 +467,12 @@ function reSort() {{
     filtered.sort((a, b) => {{
       const da = ratings[a.id] != null ? Math.abs(ratings[a.id] - (a.hr||0)) : -1;
       const db = ratings[b.id] != null ? Math.abs(ratings[b.id] - (b.hr||0)) : -1;
+      return db - da;
+    }});
+  }} else if (sortBy === 'diff2') {{
+    filtered.sort((a, b) => {{
+      const da = ratings[a.id] != null ? Math.abs(ratings[a.id] - (a.hr2||0)) : -1;
+      const db = ratings[b.id] != null ? Math.abs(ratings[b.id] - (b.hr2||0)) : -1;
       return db - da;
     }});
   }} else {{
@@ -469,4 +500,8 @@ print(f"Generated: {output_path}")
 print(f"Routes plotted: {len(results_with_hr)}")
 print(f"\nTop 10 by HR:")
 for i, r in enumerate(results_with_hr[:10]):
-    print(f"  {i+1:2d}. HR={r['heart_recognizability']:.1f}  score={r.get('score','?'):>7}  {r['id']}")
+  print(
+    f"  {i+1:2d}. HR={r['heart_recognizability']:.1f} "
+    f"HR2={r.get('heart_recognizability_v2', 0):.1f} "
+    f"score={r.get('score','?'):>7}  {r['id']}"
+  )

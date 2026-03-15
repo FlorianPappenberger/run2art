@@ -1,1 +1,1675 @@
-{"generated_at": "2026-03-15 12:01:09", "location": "Reading, UK", "center": [51.4543, -0.9781], "total_tests": 52, "completed": 52, "results": [{"id": "v82_baseline_fit", "label": "v8.2 Baseline Fit", "mode": "fit", "flags": {}, "score": 60.4, "route": [], "rotation": 150, "scale": 0.009, "center": [51.4543, -0.9796], "route_length_m": 4538.0, "route_points": 127, "time_seconds": 115.1, "error": null, "heart_recognizability": 7.3, "hr_explanation": "closure=1.00 symmetry=0.78 deviation=0.22 lobes=1.00 smoothness=0.55 => 7.3/10"}, {"id": "v82_baseline_opt", "label": "v8.2 Baseline Opt", "mode": "optimize", "flags": {}, "score": 70.4, "route": [], "rotation": 68, "scale": 0.0088, "center": [51.4513, -0.9781], "route_length_m": 6015.0, "route_points": 125, "time_seconds": 604.5, "error": null, "heart_recognizability": 6.6, "hr_explanation": "closure=1.00 symmetry=0.83 deviation=0.26 lobes=0.70 smoothness=0.49 => 6.6/10"}, {"id": "indent_fit", "label": "Indent Enforce Fit", "mode": "fit", "flags": {"indent_enforce": true}, "score": 159.1, "route": [], "rotation": 180, "scale": 0.009000000000000001, "center": [51.4543, -0.9781], "route_length_m": 6089, "route_points": 140, "time_seconds": 19.7, "error": null, "heart_recognizability": 5.6, "hr_explanation": "closure=1.00 symmetry=0.90 deviation=0.03 lobes=0.50 smoothness=0.38 => 5.6/10"}, {"id": "indent_opt", "label": "Indent Enforce Opt", "mode": "optimize", "flags": {"indent_enforce": true}, "score": 159.0, "route": [], "rotation": 180, "scale": 0.0088, "center": [51.4543, -0.9781], "route_length_m": 6650, "route_points": 153, "time_seconds": 58.4, "error": null, "heart_recognizability": 5.6, "hr_explanation": "closure=1.00 symmetry=0.88 deviation=0.06 lobes=0.50 smoothness=0.32 => 5.6/10"}, {"id": "indent_sym05_fit", "label": "Indent+Sym0.5 Fit", "mode": "fit", "flags": {"indent_enforce": true, "symmetry_weight": 0.5, "indent_weight": 0.5}, "score": 116.4, "route": [], "rotation": 180, "scale": 0.009000000000000001, "center": [51.4543, -0.9781], "route_length_m": 6089, "route_points": 140, "time_seconds": 19.8, "error": null, "heart_recognizability": 5.6, "hr_explanation": "closure=1.00 symmetry=0.90 deviation=0.03 lobes=0.50 smoothness=0.38 => 5.6/10"}, {"id": "indent_sym05_opt", "label": "Indent+Sym0.5 Opt", "mode": "optimize", "flags": {"indent_enforce": true, "symmetry_weight": 0.5, "indent_weight": 0.5}, "score": 115.6, "route": [], "rotation": 180, "scale": 0.0088, "center": [51.4543, -0.9781], "route_length_m": 6650, "route_points": 153, "time_seconds": 57.7, "error": null, "heart_recognizability": 5.6, "hr_explanation": "closure=1.00 symmetry=0.88 deviation=0.06 lobes=0.50 smoothness=0.32 => 5.6/10"}, {"id": "indent_sym05_close_fit", "label": "Indent+Sym0.5+Close Fit", "mode": "fit", "flags": {"indent_enforce": true, "symmetry_weight": 0.5, "indent_weight": 0.5, "force_close": true}, "score": 116.4, "route": [], "rotation": 180, "scale": 0.009000000000000001, "center": [51.4543, -0.9781], "route_length_m": 6089, "route_points": 140, "time_seconds": 19.5, "error": null, "heart_recognizability": 5.6, "hr_explanation": "closure=1.00 symmetry=0.90 deviation=0.03 lobes=0.50 smoothness=0.38 => 5.6/10"}, {"id": "indent_sym05_close_opt", "label": "Indent+Sym0.5+Close Opt", "mode": "optimize", "flags": {"indent_enforce": true, "symmetry_weight": 0.5, "indent_weight": 0.5, "force_close": true}, "score": 115.6, "route": [], "rotation": 180, "scale": 0.0088, "center": [51.4543, -0.9781], "route_length_m": 6650, "route_points": 153, "time_seconds": 57.9, "error": null, "heart_recognizability": 5.6, "hr_explanation": "closure=1.00 symmetry=0.88 deviation=0.06 lobes=0.50 smoothness=0.32 => 5.6/10"}, {"id": "indent_sym05_pen15", "label": "Indent+Sym+Pen1.5", "mode": "optimize", "flags": {"indent_enforce": true, "symmetry_weight": 0.5, "indent_weight": 0.5, "penalty_factor": 1.5}, "score": 122.5, "route": [], "rotation": 180, "scale": 0.0088, "center": [51.4543, -0.9781], "route_length_m": 6462, "route_points": 149, "time_seconds": 57.8, "error": null, "heart_recognizability": 5.7, "hr_explanation": "closure=1.00 symmetry=0.90 deviation=0.08 lobes=0.50 smoothness=0.36 => 5.7/10"}, {"id": "indent_sym05_pen20", "label": "Indent+Sym+Pen2.0", "mode": "optimize", "flags": {"indent_enforce": true, "symmetry_weight": 0.5, "indent_weight": 0.5, "penalty_factor": 2.0}, "score": 122.5, "route": [], "rotation": 180, "scale": 0.0088, "center": [51.4543, -0.9781], "route_length_m": 6462, "route_points": 149, "time_seconds": 58.3, "error": null, "heart_recognizability": 5.7, "hr_explanation": "closure=1.00 symmetry=0.90 deviation=0.08 lobes=0.50 smoothness=0.36 => 5.7/10"}, {"id": "indent_sym05_pen30", "label": "Indent+Sym+Pen3.0", "mode": "optimize", "flags": {"indent_enforce": true, "symmetry_weight": 0.5, "indent_weight": 0.5, "penalty_factor": 3.0}, "score": 113.3, "route": [], "rotation": 180, "scale": 0.0088, "center": [51.4543, -0.9781], "route_length_m": 6417, "route_points": 150, "time_seconds": 57.3, "error": null, "heart_recognizability": 7.2, "hr_explanation": "closure=1.00 symmetry=0.89 deviation=0.06 lobes=1.00 smoothness=0.34 => 7.2/10"}, {"id": "indent_sym05_dyn", "label": "Indent+Sym+Dynamic", "mode": "optimize", "flags": {"indent_enforce": true, "symmetry_weight": 0.5, "indent_weight": 0.5, "dynamic_densify": true}, "score": 133.7, "route": [], "rotation": 173, "scale": 0.0088, "center": [51.4543, -0.9781], "route_length_m": 5487, "route_points": 137, "time_seconds": 73.8, "error": null, "heart_recognizability": 5.7, "hr_explanation": "closure=1.00 symmetry=0.87 deviation=0.08 lobes=0.50 smoothness=0.39 => 5.7/10"}, {"id": "indent_sym05_dyn_close", "label": "Indent+Sym+Dyn+Close", "mode": "optimize", "flags": {"indent_enforce": true, "symmetry_weight": 0.5, "indent_weight": 0.5, "dynamic_densify": true, "force_close": true}, "score": 133.7, "route": [], "rotation": 173, "scale": 0.0088, "center": [51.4543, -0.9781], "route_length_m": 5487, "route_points": 137, "time_seconds": 72.7, "error": null, "heart_recognizability": 5.7, "hr_explanation": "closure=1.00 symmetry=0.87 deviation=0.08 lobes=0.50 smoothness=0.39 => 5.7/10"}, {"id": "indent_sym05_spline3", "label": "Indent+Sym+Spline3", "mode": "fit", "flags": {"indent_enforce": true, "symmetry_weight": 0.5, "indent_weight": 0.5, "spline_k": 3}, "score": 121.7, "route": [], "rotation": 180, "scale": 0.009000000000000001, "center": [51.4543, -0.9781], "route_length_m": 6902, "route_points": 185, "time_seconds": 19.6, "error": null, "heart_recognizability": 5.6, "hr_explanation": "closure=1.00 symmetry=0.90 deviation=0.04 lobes=0.50 smoothness=0.37 => 5.6/10"}, {"id": "indent_pen20_opt", "label": "Indent+Pen2.0 Opt", "mode": "optimize", "flags": {"indent_enforce": true, "indent_weight": 0.8, "penalty_factor": 2.0}, "score": 160.7, "route": [], "rotation": 187, "scale": 0.0088, "center": [51.4543, -0.9781], "route_length_m": 6075, "route_points": 147, "time_seconds": 57.2, "error": null, "heart_recognizability": 5.8, "hr_explanation": "closure=1.00 symmetry=0.85 deviation=0.21 lobes=0.50 smoothness=0.33 => 5.8/10"}, {"id": "indent_close_opt", "label": "Indent+Close Opt", "mode": "optimize", "flags": {"indent_enforce": true, "indent_weight": 0.8, "force_close": true}, "score": 159.0, "route": [], "rotation": 180, "scale": 0.0088, "center": [51.4543, -0.9781], "route_length_m": 6650, "route_points": 153, "time_seconds": 59.4, "error": null, "heart_recognizability": 5.6, "hr_explanation": "closure=1.00 symmetry=0.88 deviation=0.06 lobes=0.50 smoothness=0.32 => 5.6/10"}, {"id": "sym05_opt", "label": "Sym0.5 Opt (new shape)", "mode": "optimize", "flags": {"symmetry_weight": 0.5}, "score": 124.2, "route": [], "rotation": 180, "scale": 0.0088, "center": [51.4543, -0.9781], "route_length_m": 6359, "route_points": 149, "time_seconds": 57.6, "error": null, "heart_recognizability": 5.7, "hr_explanation": "closure=1.00 symmetry=0.90 deviation=0.05 lobes=0.50 smoothness=0.34 => 5.7/10"}, {"id": "pen30_opt", "label": "Pen3.0 Opt (new shape)", "mode": "optimize", "flags": {"penalty_factor": 3.0}, "score": 155.5, "route": [], "rotation": 180, "scale": 0.0088, "center": [51.4543, -0.9781], "route_length_m": 6126, "route_points": 146, "time_seconds": 56.9, "error": null, "heart_recognizability": 5.8, "hr_explanation": "closure=1.00 symmetry=0.91 deviation=0.06 lobes=0.50 smoothness=0.42 => 5.8/10"}, {"id": "v6prox02_opt", "label": "v6 Prox 0.2 (new shape)", "mode": "optimize", "flags": {"v6_proximity_weight": 0.2}, "score": 140.5, "route": [], "rotation": 187, "scale": 0.0088, "center": [51.4543, -0.9781], "route_length_m": 6247, "route_points": 147, "time_seconds": 57.5, "error": null, "heart_recognizability": 5.7, "hr_explanation": "closure=1.00 symmetry=0.85 deviation=0.19 lobes=0.50 smoothness=0.32 => 5.7/10"}, {"id": "full_heart_fit", "label": "Full Heart Fit", "mode": "fit", "flags": {"indent_enforce": true, "symmetry_weight": 0.5, "indent_weight": 0.5, "force_close": true, "dynamic_densify": true, "spline_k": 3}, "score": 131.7, "route": [], "rotation": 180, "scale": 0.009000000000000001, "center": [51.4543, -0.9781], "route_length_m": 6965, "route_points": 185, "time_seconds": 24.9, "error": null, "heart_recognizability": 5.6, "hr_explanation": "closure=1.00 symmetry=0.89 deviation=0.01 lobes=0.50 smoothness=0.35 => 5.6/10"}, {"id": "full_heart_opt", "label": "Full Heart Opt", "mode": "optimize", "flags": {"indent_enforce": true, "symmetry_weight": 0.5, "indent_weight": 0.5, "force_close": true, "dynamic_densify": true}, "score": 133.7, "route": [], "rotation": 173, "scale": 0.0088, "center": [51.4543, -0.9781], "route_length_m": 5487, "route_points": 137, "time_seconds": 73.8, "error": null, "heart_recognizability": 5.7, "hr_explanation": "closure=1.00 symmetry=0.87 deviation=0.08 lobes=0.50 smoothness=0.39 => 5.7/10"}, {"id": "v84_density_fit", "label": "v8.4 Density+Indent Fit", "mode": "fit", "flags": {"density_auto_scale": true, "indent_enforce": true, "symmetry_weight": 0.5, "indent_weight": 0.5}, "score": 127.0, "route": [], "rotation": 165, "scale": 0.009000000000000001, "center": [51.4543, -0.9781], "route_length_m": 10819, "route_points": 253, "time_seconds": 75.1, "error": null, "heart_recognizability": 5.8, "hr_explanation": "closure=1.00 symmetry=0.84 deviation=0.23 lobes=0.50 smoothness=0.33 => 5.8/10"}, {"id": "v84_density_opt", "label": "v8.4 Density+Indent Opt", "mode": "optimize", "flags": {"density_auto_scale": true, "indent_enforce": true, "symmetry_weight": 0.5, "indent_weight": 0.5}, "score": 125.1, "route": [], "rotation": 173, "scale": 0.01, "center": [51.4543, -0.9781], "route_length_m": 11798, "route_points": 262, "time_seconds": 210.6, "error": null, "heart_recognizability": 7.4, "hr_explanation": "closure=1.00 symmetry=0.90 deviation=0.22 lobes=1.00 smoothness=0.29 => 7.4/10"}, {"id": "v84_hierarchy_fit", "label": "v8.4 Hierarchy+Indent Fit", "mode": "fit", "flags": {"use_road_hierarchy": true, "indent_enforce": true, "symmetry_weight": 0.5, "indent_weight": 0.5}, "score": 82.8, "route": [], "rotation": 180, "scale": 0.009000000000000001, "center": [51.4543, -0.9781], "route_length_m": 6611, "route_points": 147, "time_seconds": 20.3, "error": null, "heart_recognizability": 6.1, "hr_explanation": "closure=1.00 symmetry=0.87 deviation=0.03 lobes=0.70 smoothness=0.36 => 6.1/10"}, {"id": "v84_hierarchy_opt", "label": "v8.4 Hierarchy+Indent Opt", "mode": "optimize", "flags": {"use_road_hierarchy": true, "indent_enforce": true, "symmetry_weight": 0.5, "indent_weight": 0.5}, "score": 71.1, "route": [], "rotation": 173, "scale": 0.0088, "center": [51.4543, -0.9781], "route_length_m": 4827, "route_points": 116, "time_seconds": 58.1, "error": null, "heart_recognizability": 5.8, "hr_explanation": "closure=1.00 symmetry=0.86 deviation=0.14 lobes=0.50 smoothness=0.45 => 5.8/10"}, {"id": "v84_skel_fit", "label": "v8.4 Skeleton Fit", "mode": "fit", "flags": {"use_skeleton_score": true, "skeleton_weight": 0.3, "indent_enforce": true, "symmetry_weight": 0.5, "indent_weight": 0.5, "v84_blend": 0.3}, "score": 86.3, "route": [], "rotation": 180, "scale": 0.009000000000000001, "center": [51.4543, -0.9781], "route_length_m": 6089, "route_points": 140, "time_seconds": 19.9, "error": null, "heart_recognizability": 5.6, "hr_explanation": "closure=1.00 symmetry=0.90 deviation=0.03 lobes=0.50 smoothness=0.38 => 5.6/10"}, {"id": "v84_skel_opt", "label": "v8.4 Skeleton Opt", "mode": "optimize", "flags": {"use_skeleton_score": true, "skeleton_weight": 0.3, "indent_enforce": true, "symmetry_weight": 0.5, "indent_weight": 0.5, "v84_blend": 0.3}, "score": 85.7, "route": [], "rotation": 180, "scale": 0.0088, "center": [51.4543, -0.9781], "route_length_m": 6650, "route_points": 153, "time_seconds": 58.1, "error": null, "heart_recognizability": 5.6, "hr_explanation": "closure=1.00 symmetry=0.88 deviation=0.06 lobes=0.50 smoothness=0.32 => 5.6/10"}, {"id": "v84_ph_fit", "label": "v8.4 PH Topology Fit", "mode": "fit", "flags": {"use_ph_topology": true, "ph_weight": 0.3, "indent_enforce": true, "symmetry_weight": 0.5, "indent_weight": 0.5, "v84_blend": 0.3}, "score": 94.3, "route": [], "rotation": 180, "scale": 0.009000000000000001, "center": [51.4543, -0.9781], "route_length_m": 6089, "route_points": 140, "time_seconds": 24.7, "error": null, "heart_recognizability": 5.6, "hr_explanation": "closure=1.00 symmetry=0.90 deviation=0.03 lobes=0.50 smoothness=0.38 => 5.6/10"}, {"id": "v84_ph_opt", "label": "v8.4 PH Topology Opt", "mode": "optimize", "flags": {"use_ph_topology": true, "ph_weight": 0.3, "indent_enforce": true, "symmetry_weight": 0.5, "indent_weight": 0.5, "v84_blend": 0.3}, "score": 97.1, "route": [], "rotation": 180, "scale": 0.0088, "center": [51.4543, -0.9781], "route_length_m": 6650, "route_points": 153, "time_seconds": 71.3, "error": null, "heart_recognizability": 5.6, "hr_explanation": "closure=1.00 symmetry=0.88 deviation=0.06 lobes=0.50 smoothness=0.32 => 5.6/10"}, {"id": "v84_fgw_opt", "label": "v8.4 FGW Opt", "mode": "optimize", "flags": {"use_fgw": true, "fgw_weight": 0.3, "indent_enforce": true, "symmetry_weight": 0.5, "indent_weight": 0.5, "v84_blend": 0.3}, "score": 80.9, "route": [], "rotation": 180, "scale": 0.0088, "center": [51.4543, -0.9781], "route_length_m": 6650, "route_points": 153, "time_seconds": 61.1, "error": null, "heart_recognizability": 5.6, "hr_explanation": "closure=1.00 symmetry=0.88 deviation=0.06 lobes=0.50 smoothness=0.32 => 5.6/10"}, {"id": "v84_percep_opt", "label": "v8.4 Perceptual Opt", "mode": "optimize", "flags": {"use_perceptual_loss": true, "perceptual_weight": 0.3, "indent_enforce": true, "symmetry_weight": 0.5, "indent_weight": 0.5, "v84_blend": 0.3}, "score": 82.5, "route": [], "rotation": 180, "scale": 0.0088, "center": [51.4543, -0.9781], "route_length_m": 6650, "route_points": 153, "time_seconds": 66.1, "error": null, "heart_recognizability": 5.6, "hr_explanation": "closure=1.00 symmetry=0.88 deviation=0.06 lobes=0.50 smoothness=0.32 => 5.6/10"}, {"id": "v84_skel_hier_fit", "label": "v8.4 Skel+Hier Fit", "mode": "fit", "flags": {"use_skeleton_score": true, "skeleton_weight": 0.3, "use_road_hierarchy": true, "indent_enforce": true, "symmetry_weight": 0.5, "indent_weight": 0.5, "v84_blend": 0.3}, "score": 102.6, "route": [], "rotation": 180, "scale": 0.009000000000000001, "center": [51.4543, -0.9781], "route_length_m": 6611, "route_points": 147, "time_seconds": 20.1, "error": null, "heart_recognizability": 6.1, "hr_explanation": "closure=1.00 symmetry=0.87 deviation=0.03 lobes=0.70 smoothness=0.36 => 6.1/10"}, {"id": "v84_skel_hier_opt", "label": "v8.4 Skel+Hier Opt", "mode": "optimize", "flags": {"use_skeleton_score": true, "skeleton_weight": 0.3, "use_road_hierarchy": true, "indent_enforce": true, "symmetry_weight": 0.5, "indent_weight": 0.5, "v84_blend": 0.3}, "score": 88.9, "route": [], "rotation": 173, "scale": 0.0088, "center": [51.4543, -0.9781], "route_length_m": 4827, "route_points": 116, "time_seconds": 58.3, "error": null, "heart_recognizability": 5.8, "hr_explanation": "closure=1.00 symmetry=0.86 deviation=0.14 lobes=0.50 smoothness=0.45 => 5.8/10"}, {"id": "v84_ph_skel_opt", "label": "v8.4 PH+Skel Opt", "mode": "optimize", "flags": {"use_ph_topology": true, "ph_weight": 0.2, "use_skeleton_score": true, "skeleton_weight": 0.2, "indent_enforce": true, "symmetry_weight": 0.5, "indent_weight": 0.5, "v84_blend": 0.3}, "score": 94.9, "route": [], "rotation": 180, "scale": 0.0088, "center": [51.4543, -0.9781], "route_length_m": 6650, "route_points": 153, "time_seconds": 71.1, "error": null, "heart_recognizability": 5.6, "hr_explanation": "closure=1.00 symmetry=0.88 deviation=0.06 lobes=0.50 smoothness=0.32 => 5.6/10"}, {"id": "v84_dens_hier_skel", "label": "v8.4 Dens+Hier+Skel", "mode": "optimize", "flags": {"density_auto_scale": true, "use_road_hierarchy": true, "use_skeleton_score": true, "skeleton_weight": 0.3, "indent_enforce": true, "symmetry_weight": 0.5, "indent_weight": 0.5, "v84_blend": 0.3}, "score": 150.6, "route": [], "rotation": 195, "scale": 0.0088, "center": [51.4543, -0.9781], "route_length_m": 8903, "route_points": 209, "time_seconds": 215.2, "error": null, "heart_recognizability": 6.1, "hr_explanation": "closure=1.00 symmetry=0.82 deviation=0.12 lobes=0.70 smoothness=0.31 => 6.1/10"}, {"id": "v84_percep_ph_opt", "label": "v8.4 Percep+PH Opt", "mode": "optimize", "flags": {"use_perceptual_loss": true, "perceptual_weight": 0.2, "use_ph_topology": true, "ph_weight": 0.2, "indent_enforce": true, "symmetry_weight": 0.5, "indent_weight": 0.5, "v84_blend": 0.3}, "score": 92.7, "route": [], "rotation": 180, "scale": 0.0088, "center": [51.4543, -0.9781], "route_length_m": 6650, "route_points": 153, "time_seconds": 74.1, "error": null, "heart_recognizability": 5.6, "hr_explanation": "closure=1.00 symmetry=0.88 deviation=0.06 lobes=0.50 smoothness=0.32 => 5.6/10"}, {"id": "v84_hier_dyn_opt", "label": "v8.4 Hier+Dynamic Opt", "mode": "optimize", "flags": {"use_road_hierarchy": true, "dynamic_densify": true, "indent_enforce": true, "symmetry_weight": 0.5, "indent_weight": 0.5}, "score": 83.9, "route": [], "rotation": 180, "scale": 0.0088, "center": [51.4543, -0.9781], "route_length_m": 6790, "route_points": 155, "time_seconds": 73.9, "error": null, "heart_recognizability": 5.6, "hr_explanation": "closure=1.00 symmetry=0.87 deviation=0.07 lobes=0.50 smoothness=0.35 => 5.6/10"}, {"id": "v84_skel_spline_fit", "label": "v8.4 Skel+Spline Fit", "mode": "fit", "flags": {"use_skeleton_score": true, "skeleton_weight": 0.3, "spline_k": 3, "indent_enforce": true, "symmetry_weight": 0.5, "indent_weight": 0.5, "v84_blend": 0.3}, "score": 89.9, "route": [], "rotation": 180, "scale": 0.009000000000000001, "center": [51.4543, -0.9781], "route_length_m": 6902, "route_points": 185, "time_seconds": 20.0, "error": null, "heart_recognizability": 5.6, "hr_explanation": "closure=1.00 symmetry=0.90 deviation=0.04 lobes=0.50 smoothness=0.37 => 5.6/10"}, {"id": "v84_skel_b20", "label": "v8.4 Skel blend=0.2", "mode": "optimize", "flags": {"use_skeleton_score": true, "skeleton_weight": 0.3, "indent_enforce": true, "symmetry_weight": 0.5, "indent_weight": 0.5, "v84_blend": 0.2}, "score": 95.7, "route": [], "rotation": 180, "scale": 0.0088, "center": [51.4543, -0.9781], "route_length_m": 6650, "route_points": 153, "time_seconds": 57.7, "error": null, "heart_recognizability": 5.6, "hr_explanation": "closure=1.00 symmetry=0.88 deviation=0.06 lobes=0.50 smoothness=0.32 => 5.6/10"}, {"id": "v84_skel_b40", "label": "v8.4 Skel blend=0.4", "mode": "optimize", "flags": {"use_skeleton_score": true, "skeleton_weight": 0.3, "indent_enforce": true, "symmetry_weight": 0.5, "indent_weight": 0.5, "v84_blend": 0.4}, "score": 75.7, "route": [], "rotation": 180, "scale": 0.0088, "center": [51.4543, -0.9781], "route_length_m": 6650, "route_points": 153, "time_seconds": 57.7, "error": null, "heart_recognizability": 5.6, "hr_explanation": "closure=1.00 symmetry=0.88 deviation=0.06 lobes=0.50 smoothness=0.32 => 5.6/10"}, {"id": "v84_hier_pen20", "label": "v8.4 Hier+Pen2.0", "mode": "optimize", "flags": {"use_road_hierarchy": true, "penalty_factor": 2.0, "indent_enforce": true, "symmetry_weight": 0.5, "indent_weight": 0.5}, "score": 68.4, "route": [], "rotation": 180, "scale": 0.0088, "center": [51.4543, -0.9781], "route_length_m": 6435, "route_points": 152, "time_seconds": 57.6, "error": null, "heart_recognizability": 7.2, "hr_explanation": "closure=1.00 symmetry=0.89 deviation=0.06 lobes=1.00 smoothness=0.36 => 7.2/10"}, {"id": "v84_hier_pen30", "label": "v8.4 Hier+Pen3.0", "mode": "optimize", "flags": {"use_road_hierarchy": true, "penalty_factor": 3.0, "indent_enforce": true, "symmetry_weight": 0.5, "indent_weight": 0.5}, "score": 68.4, "route": [], "rotation": 180, "scale": 0.0088, "center": [51.4543, -0.9781], "route_length_m": 6435, "route_points": 152, "time_seconds": 57.8, "error": null, "heart_recognizability": 7.2, "hr_explanation": "closure=1.00 symmetry=0.89 deviation=0.06 lobes=1.00 smoothness=0.36 => 7.2/10"}, {"id": "v84_full_fit", "label": "v8.4 Full Fit", "mode": "fit", "flags": {"density_auto_scale": true, "use_road_hierarchy": true, "use_skeleton_score": true, "skeleton_weight": 0.2, "use_ph_topology": true, "ph_weight": 0.2, "indent_enforce": true, "symmetry_weight": 0.5, "indent_weight": 0.5, "force_close": true, "v84_blend": 0.3}, "score": 174.6, "route": [], "rotation": 165, "scale": 0.01, "center": [51.4543, -0.9781], "route_length_m": 12121, "route_points": 261, "time_seconds": 82.2, "error": null, "heart_recognizability": 5.9, "hr_explanation": "closure=1.00 symmetry=0.87 deviation=0.22 lobes=0.50 smoothness=0.32 => 5.9/10"}, {"id": "v84_full_opt", "label": "v8.4 Full Opt", "mode": "optimize", "flags": {"density_auto_scale": true, "use_road_hierarchy": true, "use_skeleton_score": true, "skeleton_weight": 0.2, "use_ph_topology": true, "ph_weight": 0.2, "indent_enforce": true, "symmetry_weight": 0.5, "indent_weight": 0.5, "force_close": true, "dynamic_densify": true, "v84_blend": 0.3}, "score": 161.1, "route": [], "rotation": 195, "scale": 0.0088, "center": [51.4543, -0.9781], "route_length_m": 8886, "route_points": 209, "time_seconds": 244.3, "error": null, "heart_recognizability": 6.2, "hr_explanation": "closure=1.00 symmetry=0.83 deviation=0.14 lobes=0.70 smoothness=0.34 => 6.2/10"}, {"id": "v85_wide_default", "label": "v8.5 Wide Default", "mode": "optimize", "flags": {"wide_search": true, "indent_enforce": true, "symmetry_weight": 0.5, "indent_weight": 0.5}, "score": 124.0, "route": [], "rotation": 159.5, "scale": 0.0049104000000000005, "center": [51.424600000000005, -0.9319], "route_length_m": 4735, "route_points": 147, "time_seconds": 77.2, "heart_recognizability": 5.7, "hr_explanation": "closure=1.00 symmetry=0.84 deviation=0.12 lobes=0.50 smoothness=0.44 => 5.7/10", "error": null}, {"id": "v85_wide_hier", "label": "v8.5 Wide+Hierarchy", "mode": "optimize", "flags": {"wide_search": true, "use_road_hierarchy": true, "indent_enforce": true, "symmetry_weight": 0.5, "indent_weight": 0.5}, "score": 76.5, "route": [], "rotation": 157.0, "scale": 0.0049104000000000005, "center": [51.424600000000005, -0.9319], "route_length_m": 4379, "route_points": 133, "time_seconds": 77.7, "heart_recognizability": 7.3, "hr_explanation": "closure=1.00 symmetry=0.86 deviation=0.16 lobes=1.00 smoothness=0.44 => 7.3/10", "error": null}, {"id": "v85_wide_pen20", "label": "v8.5 Wide+Pen2.0", "mode": "optimize", "flags": {"wide_search": true, "penalty_factor": 2.0, "indent_enforce": true, "symmetry_weight": 0.5, "indent_weight": 0.5}, "score": 124.7, "route": [], "rotation": 153.0, "scale": 0.0049104000000000005, "center": [51.424600000000005, -0.9319], "route_length_m": 4567, "route_points": 146, "time_seconds": 75.5, "heart_recognizability": 5.8, "hr_explanation": "closure=1.00 symmetry=0.85 deviation=0.18 lobes=0.50 smoothness=0.40 => 5.8/10", "error": null}, {"id": "v85_wide_hier_pen30", "label": "v8.5 Wide+Hier+Pen3.0", "mode": "optimize", "flags": {"wide_search": true, "use_road_hierarchy": true, "penalty_factor": 3.0, "indent_enforce": true, "symmetry_weight": 0.5, "indent_weight": 0.5}, "score": 76.5, "route": [], "rotation": 157.0, "scale": 0.0049104000000000005, "center": [51.424600000000005, -0.9319], "route_length_m": 4379, "route_points": 133, "time_seconds": 76.4, "heart_recognizability": 7.3, "hr_explanation": "closure=1.00 symmetry=0.86 deviation=0.16 lobes=1.00 smoothness=0.44 => 7.3/10", "error": null}, {"id": "v85_wide_2km", "label": "v8.5 Wide 2km", "mode": "optimize", "flags": {"wide_search": true, "wide_km_range": 2.0, "wide_offset_steps": 3, "indent_enforce": true, "symmetry_weight": 0.5, "indent_weight": 0.5}, "score": 87.5, "route": [], "rotation": 325.0, "scale": 0.00376, "center": [51.451600000000006, -0.9682999999999999], "route_length_m": 3053, "route_points": 72, "time_seconds": 85.0, "heart_recognizability": 7.6, "hr_explanation": "closure=1.00 symmetry=0.85 deviation=0.22 lobes=1.00 smoothness=0.57 => 7.6/10", "error": null}, {"id": "v85_wide_6km", "label": "v8.5 Wide 6km", "mode": "optimize", "flags": {"wide_search": true, "wide_km_range": 6.0, "wide_offset_steps": 5, "wide_n_coarse": 300, "wide_n_refine": 40, "wide_n_fine": 15, "indent_enforce": true, "symmetry_weight": 0.5, "indent_weight": 0.5}, "score": 97.3, "route": [], "rotation": 228.0, "scale": 0.00352, "center": [51.455650000000006, -0.9673], "route_length_m": 2166, "route_points": 76, "time_seconds": 87.6, "heart_recognizability": 6.6, "hr_explanation": "closure=1.00 symmetry=0.72 deviation=0.39 lobes=0.70 smoothness=0.58 => 6.6/10", "error": null}, {"id": "v85_wide_hier_skel", "label": "v8.5 Wide+Hier+Skel", "mode": "optimize", "flags": {"wide_search": true, "use_road_hierarchy": true, "use_skeleton_score": true, "skeleton_weight": 0.3, "indent_enforce": true, "symmetry_weight": 0.5, "indent_weight": 0.5, "v84_blend": 0.3}, "score": 95.0, "route": [], "rotation": 157.0, "scale": 0.0049104000000000005, "center": [51.424600000000005, -0.9319], "route_length_m": 4379, "route_points": 133, "time_seconds": 81.2, "heart_recognizability": 7.3, "hr_explanation": "closure=1.00 symmetry=0.86 deviation=0.16 lobes=1.00 smoothness=0.44 => 7.3/10", "error": null}, {"id": "v85_wide_full", "label": "v8.5 Wide Full", "mode": "optimize", "flags": {"wide_search": true, "use_road_hierarchy": true, "use_skeleton_score": true, "skeleton_weight": 0.2, "use_ph_topology": true, "ph_weight": 0.2, "indent_enforce": true, "symmetry_weight": 0.5, "indent_weight": 0.5, "v84_blend": 0.3}, "score": 104.3, "route": [], "rotation": 157.0, "scale": 0.0049104000000000005, "center": [51.424600000000005, -0.9319], "route_length_m": 4379, "route_points": 133, "time_seconds": 100.5, "heart_recognizability": 7.3, "hr_explanation": "closure=1.00 symmetry=0.86 deviation=0.16 lobes=1.00 smoothness=0.44 => 7.3/10", "error": null}]}
+{
+  "generated_at": "2026-03-15 15:07:07",
+  "location": "Reading, UK",
+  "center": [
+    51.4543,
+    -0.9781
+  ],
+  "total_tests": 58,
+  "completed": 58,
+  "results": [
+    {
+      "id": "v82_baseline_fit",
+      "label": "v8.2 Baseline Fit",
+      "mode": "fit",
+      "flags": {},
+      "score": 60.4,
+      "route": [],
+      "rotation": 150,
+      "scale": 0.009,
+      "center": [
+        51.4543,
+        -0.9796
+      ],
+      "route_length_m": 4538.0,
+      "route_points": 127,
+      "time_seconds": 115.1,
+      "error": null,
+      "heart_recognizability": 6.8,
+      "hr_explanation": "raw=6.3 abstract=7.1 combined=6.8/10 | lobes=0.99 indent=0.30 cusp=0.58 sym=0.82 dev=0.18 smooth=0.55 closure=1.00 => 6.3/10",
+      "heart_recognizability_v2": 6.0,
+      "hr2_explanation": "raw=6.3 abstract=7.1 manual_v2=6.0/10 | sym=0.82 lobes=0.99 cusp=0.58 indent_pref=0.67 dev=0.18 smooth=0.55 seg_repeat=0.09 pt_repeat=0.10 route_pen=0.72 fit_bonus=0.70"
+    },
+    {
+      "id": "v82_baseline_opt",
+      "label": "v8.2 Baseline Opt",
+      "mode": "optimize",
+      "flags": {},
+      "score": 70.4,
+      "route": [],
+      "rotation": 68,
+      "scale": 0.0088,
+      "center": [
+        51.4513,
+        -0.9781
+      ],
+      "route_length_m": 6015.0,
+      "route_points": 125,
+      "time_seconds": 604.5,
+      "error": null,
+      "heart_recognizability": 6.4,
+      "hr_explanation": "raw=6.1 abstract=6.6 combined=6.4/10 | lobes=0.93 indent=0.30 cusp=0.54 sym=0.82 dev=0.25 smooth=0.49 closure=1.00 => 6.1/10",
+      "heart_recognizability_v2": 4.4,
+      "hr2_explanation": "raw=6.1 abstract=6.6 manual_v2=4.4/10 | sym=0.82 lobes=0.93 cusp=0.54 indent_pref=0.67 dev=0.25 smooth=0.49 seg_repeat=0.15 pt_repeat=0.15 route_pen=0.84 fit_bonus=0.00"
+    },
+    {
+      "id": "indent_fit",
+      "label": "Indent Enforce Fit",
+      "mode": "fit",
+      "flags": {
+        "indent_enforce": true
+      },
+      "score": 159.1,
+      "route": [],
+      "rotation": 180,
+      "scale": 0.009000000000000001,
+      "center": [
+        51.4543,
+        -0.9781
+      ],
+      "route_length_m": 6089,
+      "route_points": 140,
+      "time_seconds": 19.7,
+      "error": null,
+      "heart_recognizability": 5.8,
+      "hr_explanation": "raw=6.3 abstract=5.5 combined=5.8/10 | lobes=0.99 indent=0.30 cusp=0.68 sym=0.90 dev=0.00 smooth=0.38 closure=1.00 => 6.3/10",
+      "heart_recognizability_v2": 4.9,
+      "hr2_explanation": "raw=6.3 abstract=5.5 manual_v2=4.9/10 | sym=0.90 lobes=0.99 cusp=0.68 indent_pref=0.67 dev=0.00 smooth=0.38 seg_repeat=0.19 pt_repeat=0.19 route_pen=1.91 fit_bonus=0.70"
+    },
+    {
+      "id": "indent_opt",
+      "label": "Indent Enforce Opt",
+      "mode": "optimize",
+      "flags": {
+        "indent_enforce": true
+      },
+      "score": 159.0,
+      "route": [],
+      "rotation": 180,
+      "scale": 0.0088,
+      "center": [
+        51.4543,
+        -0.9781
+      ],
+      "route_length_m": 6650,
+      "route_points": 153,
+      "time_seconds": 58.4,
+      "error": null,
+      "heart_recognizability": 5.7,
+      "hr_explanation": "raw=6.4 abstract=5.3 combined=5.7/10 | lobes=0.97 indent=0.50 cusp=0.64 sym=0.87 dev=0.01 smooth=0.32 closure=1.00 => 6.4/10",
+      "heart_recognizability_v2": 4.1,
+      "hr2_explanation": "raw=6.4 abstract=5.3 manual_v2=4.1/10 | sym=0.87 lobes=0.97 cusp=0.64 indent_pref=0.89 dev=0.01 smooth=0.32 seg_repeat=0.20 pt_repeat=0.22 route_pen=1.91 fit_bonus=0.00"
+    },
+    {
+      "id": "indent_sym05_fit",
+      "label": "Indent+Sym0.5 Fit",
+      "mode": "fit",
+      "flags": {
+        "indent_enforce": true,
+        "symmetry_weight": 0.5,
+        "indent_weight": 0.5
+      },
+      "score": 116.4,
+      "route": [],
+      "rotation": 180,
+      "scale": 0.009000000000000001,
+      "center": [
+        51.4543,
+        -0.9781
+      ],
+      "route_length_m": 6089,
+      "route_points": 140,
+      "time_seconds": 19.8,
+      "error": null,
+      "heart_recognizability": 5.8,
+      "hr_explanation": "raw=6.3 abstract=5.5 combined=5.8/10 | lobes=0.99 indent=0.30 cusp=0.68 sym=0.90 dev=0.00 smooth=0.38 closure=1.00 => 6.3/10",
+      "heart_recognizability_v2": 5.4,
+      "hr2_explanation": "raw=6.3 abstract=5.5 manual_v2=5.4/10 | sym=0.90 lobes=0.99 cusp=0.68 indent_pref=0.67 dev=0.00 smooth=0.38 seg_repeat=0.19 pt_repeat=0.19 route_pen=1.40 fit_bonus=0.70"
+    },
+    {
+      "id": "indent_sym05_opt",
+      "label": "Indent+Sym0.5 Opt",
+      "mode": "optimize",
+      "flags": {
+        "indent_enforce": true,
+        "symmetry_weight": 0.5,
+        "indent_weight": 0.5
+      },
+      "score": 115.6,
+      "route": [],
+      "rotation": 180,
+      "scale": 0.0088,
+      "center": [
+        51.4543,
+        -0.9781
+      ],
+      "route_length_m": 6650,
+      "route_points": 153,
+      "time_seconds": 57.7,
+      "error": null,
+      "heart_recognizability": 5.7,
+      "hr_explanation": "raw=6.4 abstract=5.3 combined=5.7/10 | lobes=0.97 indent=0.50 cusp=0.64 sym=0.87 dev=0.01 smooth=0.32 closure=1.00 => 6.4/10",
+      "heart_recognizability_v2": 4.6,
+      "hr2_explanation": "raw=6.4 abstract=5.3 manual_v2=4.6/10 | sym=0.87 lobes=0.97 cusp=0.64 indent_pref=0.89 dev=0.01 smooth=0.32 seg_repeat=0.20 pt_repeat=0.22 route_pen=1.39 fit_bonus=0.00"
+    },
+    {
+      "id": "indent_sym05_close_fit",
+      "label": "Indent+Sym0.5+Close Fit",
+      "mode": "fit",
+      "flags": {
+        "indent_enforce": true,
+        "symmetry_weight": 0.5,
+        "indent_weight": 0.5,
+        "force_close": true
+      },
+      "score": 116.4,
+      "route": [],
+      "rotation": 180,
+      "scale": 0.009000000000000001,
+      "center": [
+        51.4543,
+        -0.9781
+      ],
+      "route_length_m": 6089,
+      "route_points": 140,
+      "time_seconds": 19.5,
+      "error": null,
+      "heart_recognizability": 5.8,
+      "hr_explanation": "raw=6.3 abstract=5.5 combined=5.8/10 | lobes=0.99 indent=0.30 cusp=0.68 sym=0.90 dev=0.00 smooth=0.38 closure=1.00 => 6.3/10",
+      "heart_recognizability_v2": 5.4,
+      "hr2_explanation": "raw=6.3 abstract=5.5 manual_v2=5.4/10 | sym=0.90 lobes=0.99 cusp=0.68 indent_pref=0.67 dev=0.00 smooth=0.38 seg_repeat=0.19 pt_repeat=0.19 route_pen=1.40 fit_bonus=0.70"
+    },
+    {
+      "id": "indent_sym05_close_opt",
+      "label": "Indent+Sym0.5+Close Opt",
+      "mode": "optimize",
+      "flags": {
+        "indent_enforce": true,
+        "symmetry_weight": 0.5,
+        "indent_weight": 0.5,
+        "force_close": true
+      },
+      "score": 115.6,
+      "route": [],
+      "rotation": 180,
+      "scale": 0.0088,
+      "center": [
+        51.4543,
+        -0.9781
+      ],
+      "route_length_m": 6650,
+      "route_points": 153,
+      "time_seconds": 57.9,
+      "error": null,
+      "heart_recognizability": 5.7,
+      "hr_explanation": "raw=6.4 abstract=5.3 combined=5.7/10 | lobes=0.97 indent=0.50 cusp=0.64 sym=0.87 dev=0.01 smooth=0.32 closure=1.00 => 6.4/10",
+      "heart_recognizability_v2": 4.6,
+      "hr2_explanation": "raw=6.4 abstract=5.3 manual_v2=4.6/10 | sym=0.87 lobes=0.97 cusp=0.64 indent_pref=0.89 dev=0.01 smooth=0.32 seg_repeat=0.20 pt_repeat=0.22 route_pen=1.39 fit_bonus=0.00"
+    },
+    {
+      "id": "indent_sym05_pen15",
+      "label": "Indent+Sym+Pen1.5",
+      "mode": "optimize",
+      "flags": {
+        "indent_enforce": true,
+        "symmetry_weight": 0.5,
+        "indent_weight": 0.5,
+        "penalty_factor": 1.5
+      },
+      "score": 122.5,
+      "route": [],
+      "rotation": 180,
+      "scale": 0.0088,
+      "center": [
+        51.4543,
+        -0.9781
+      ],
+      "route_length_m": 6462,
+      "route_points": 149,
+      "time_seconds": 57.8,
+      "error": null,
+      "heart_recognizability": 6.1,
+      "hr_explanation": "raw=6.5 abstract=5.9 combined=6.1/10 | lobes=0.96 indent=0.50 cusp=0.63 sym=0.87 dev=0.03 smooth=0.36 closure=1.00 => 6.5/10",
+      "heart_recognizability_v2": 4.7,
+      "hr2_explanation": "raw=6.5 abstract=5.9 manual_v2=4.7/10 | sym=0.87 lobes=0.96 cusp=0.63 indent_pref=0.89 dev=0.03 smooth=0.36 seg_repeat=0.18 pt_repeat=0.19 route_pen=1.47 fit_bonus=0.00"
+    },
+    {
+      "id": "indent_sym05_pen20",
+      "label": "Indent+Sym+Pen2.0",
+      "mode": "optimize",
+      "flags": {
+        "indent_enforce": true,
+        "symmetry_weight": 0.5,
+        "indent_weight": 0.5,
+        "penalty_factor": 2.0
+      },
+      "score": 122.5,
+      "route": [],
+      "rotation": 180,
+      "scale": 0.0088,
+      "center": [
+        51.4543,
+        -0.9781
+      ],
+      "route_length_m": 6462,
+      "route_points": 149,
+      "time_seconds": 58.3,
+      "error": null,
+      "heart_recognizability": 6.1,
+      "hr_explanation": "raw=6.5 abstract=5.9 combined=6.1/10 | lobes=0.96 indent=0.50 cusp=0.63 sym=0.87 dev=0.03 smooth=0.36 closure=1.00 => 6.5/10",
+      "heart_recognizability_v2": 4.7,
+      "hr2_explanation": "raw=6.5 abstract=5.9 manual_v2=4.7/10 | sym=0.87 lobes=0.96 cusp=0.63 indent_pref=0.89 dev=0.03 smooth=0.36 seg_repeat=0.18 pt_repeat=0.19 route_pen=1.47 fit_bonus=0.00"
+    },
+    {
+      "id": "indent_sym05_pen30",
+      "label": "Indent+Sym+Pen3.0",
+      "mode": "optimize",
+      "flags": {
+        "indent_enforce": true,
+        "symmetry_weight": 0.5,
+        "indent_weight": 0.5,
+        "penalty_factor": 3.0
+      },
+      "score": 113.3,
+      "route": [],
+      "rotation": 180,
+      "scale": 0.0088,
+      "center": [
+        51.4543,
+        -0.9781
+      ],
+      "route_length_m": 6417,
+      "route_points": 150,
+      "time_seconds": 57.3,
+      "error": null,
+      "heart_recognizability": 6.5,
+      "hr_explanation": "raw=7.0 abstract=6.2 combined=6.5/10 | lobes=0.98 indent=0.80 cusp=0.54 sym=0.87 dev=0.02 smooth=0.34 closure=1.00 => 7.0/10",
+      "heart_recognizability_v2": 4.4,
+      "hr2_explanation": "raw=7.0 abstract=6.2 manual_v2=4.4/10 | sym=0.87 lobes=0.98 cusp=0.54 indent_pref=0.22 dev=0.02 smooth=0.34 seg_repeat=0.18 pt_repeat=0.19 route_pen=1.36 fit_bonus=0.00"
+    },
+    {
+      "id": "indent_sym05_dyn",
+      "label": "Indent+Sym+Dynamic",
+      "mode": "optimize",
+      "flags": {
+        "indent_enforce": true,
+        "symmetry_weight": 0.5,
+        "indent_weight": 0.5,
+        "dynamic_densify": true
+      },
+      "score": 133.7,
+      "route": [],
+      "rotation": 173,
+      "scale": 0.0088,
+      "center": [
+        51.4543,
+        -0.9781
+      ],
+      "route_length_m": 5487,
+      "route_points": 137,
+      "time_seconds": 73.8,
+      "error": null,
+      "heart_recognizability": 6.5,
+      "hr_explanation": "raw=6.6 abstract=6.5 combined=6.5/10 | lobes=1.00 indent=0.50 cusp=0.65 sym=0.87 dev=0.03 smooth=0.39 closure=1.00 => 6.6/10",
+      "heart_recognizability_v2": 5.1,
+      "hr2_explanation": "raw=6.6 abstract=6.5 manual_v2=5.1/10 | sym=0.87 lobes=1.00 cusp=0.65 indent_pref=0.89 dev=0.03 smooth=0.39 seg_repeat=0.13 pt_repeat=0.15 route_pen=1.60 fit_bonus=0.00"
+    },
+    {
+      "id": "indent_sym05_dyn_close",
+      "label": "Indent+Sym+Dyn+Close",
+      "mode": "optimize",
+      "flags": {
+        "indent_enforce": true,
+        "symmetry_weight": 0.5,
+        "indent_weight": 0.5,
+        "dynamic_densify": true,
+        "force_close": true
+      },
+      "score": 133.7,
+      "route": [],
+      "rotation": 173,
+      "scale": 0.0088,
+      "center": [
+        51.4543,
+        -0.9781
+      ],
+      "route_length_m": 5487,
+      "route_points": 137,
+      "time_seconds": 72.7,
+      "error": null,
+      "heart_recognizability": 6.5,
+      "hr_explanation": "raw=6.6 abstract=6.5 combined=6.5/10 | lobes=1.00 indent=0.50 cusp=0.65 sym=0.87 dev=0.03 smooth=0.39 closure=1.00 => 6.6/10",
+      "heart_recognizability_v2": 5.1,
+      "hr2_explanation": "raw=6.6 abstract=6.5 manual_v2=5.1/10 | sym=0.87 lobes=1.00 cusp=0.65 indent_pref=0.89 dev=0.03 smooth=0.39 seg_repeat=0.13 pt_repeat=0.15 route_pen=1.60 fit_bonus=0.00"
+    },
+    {
+      "id": "indent_sym05_spline3",
+      "label": "Indent+Sym+Spline3",
+      "mode": "fit",
+      "flags": {
+        "indent_enforce": true,
+        "symmetry_weight": 0.5,
+        "indent_weight": 0.5,
+        "spline_k": 3
+      },
+      "score": 121.7,
+      "route": [],
+      "rotation": 180,
+      "scale": 0.009000000000000001,
+      "center": [
+        51.4543,
+        -0.9781
+      ],
+      "route_length_m": 6902,
+      "route_points": 185,
+      "time_seconds": 19.6,
+      "error": null,
+      "heart_recognizability": 5.8,
+      "hr_explanation": "raw=5.6 abstract=6.0 combined=5.8/10 | lobes=0.99 indent=0.00 cusp=0.64 sym=0.90 dev=0.00 smooth=0.37 closure=1.00 => 5.6/10",
+      "heart_recognizability_v2": 4.7,
+      "hr2_explanation": "raw=5.6 abstract=6.0 manual_v2=4.7/10 | sym=0.90 lobes=0.99 cusp=0.64 indent_pref=0.00 dev=0.00 smooth=0.37 seg_repeat=0.15 pt_repeat=0.22 route_pen=1.46 fit_bonus=0.70"
+    },
+    {
+      "id": "indent_pen20_opt",
+      "label": "Indent+Pen2.0 Opt",
+      "mode": "optimize",
+      "flags": {
+        "indent_enforce": true,
+        "indent_weight": 0.8,
+        "penalty_factor": 2.0
+      },
+      "score": 160.7,
+      "route": [],
+      "rotation": 187,
+      "scale": 0.0088,
+      "center": [
+        51.4543,
+        -0.9781
+      ],
+      "route_length_m": 6075,
+      "route_points": 147,
+      "time_seconds": 57.2,
+      "error": null,
+      "heart_recognizability": 6.3,
+      "hr_explanation": "raw=6.0 abstract=6.5 combined=6.3/10 | lobes=0.93 indent=0.30 cusp=0.57 sym=0.86 dev=0.19 smooth=0.33 closure=1.00 => 6.0/10",
+      "heart_recognizability_v2": 3.8,
+      "hr2_explanation": "raw=6.0 abstract=6.5 manual_v2=3.8/10 | sym=0.86 lobes=0.93 cusp=0.57 indent_pref=0.67 dev=0.19 smooth=0.33 seg_repeat=0.14 pt_repeat=0.16 route_pen=1.93 fit_bonus=0.00"
+    },
+    {
+      "id": "indent_close_opt",
+      "label": "Indent+Close Opt",
+      "mode": "optimize",
+      "flags": {
+        "indent_enforce": true,
+        "indent_weight": 0.8,
+        "force_close": true
+      },
+      "score": 159.0,
+      "route": [],
+      "rotation": 180,
+      "scale": 0.0088,
+      "center": [
+        51.4543,
+        -0.9781
+      ],
+      "route_length_m": 6650,
+      "route_points": 153,
+      "time_seconds": 59.4,
+      "error": null,
+      "heart_recognizability": 5.7,
+      "hr_explanation": "raw=6.4 abstract=5.3 combined=5.7/10 | lobes=0.97 indent=0.50 cusp=0.64 sym=0.87 dev=0.01 smooth=0.32 closure=1.00 => 6.4/10",
+      "heart_recognizability_v2": 4.1,
+      "hr2_explanation": "raw=6.4 abstract=5.3 manual_v2=4.1/10 | sym=0.87 lobes=0.97 cusp=0.64 indent_pref=0.89 dev=0.01 smooth=0.32 seg_repeat=0.20 pt_repeat=0.22 route_pen=1.91 fit_bonus=0.00"
+    },
+    {
+      "id": "sym05_opt",
+      "label": "Sym0.5 Opt (new shape)",
+      "mode": "optimize",
+      "flags": {
+        "symmetry_weight": 0.5
+      },
+      "score": 124.2,
+      "route": [],
+      "rotation": 180,
+      "scale": 0.0088,
+      "center": [
+        51.4543,
+        -0.9781
+      ],
+      "route_length_m": 6359,
+      "route_points": 149,
+      "time_seconds": 57.6,
+      "error": null,
+      "heart_recognizability": 5.8,
+      "hr_explanation": "raw=6.0 abstract=5.7 combined=5.8/10 | lobes=0.96 indent=0.30 cusp=0.56 sym=0.89 dev=0.00 smooth=0.34 closure=1.00 => 6.0/10",
+      "heart_recognizability_v2": 4.5,
+      "hr2_explanation": "raw=6.0 abstract=5.7 manual_v2=4.5/10 | sym=0.89 lobes=0.96 cusp=0.56 indent_pref=0.67 dev=0.00 smooth=0.34 seg_repeat=0.17 pt_repeat=0.18 route_pen=1.49 fit_bonus=0.00"
+    },
+    {
+      "id": "pen30_opt",
+      "label": "Pen3.0 Opt (new shape)",
+      "mode": "optimize",
+      "flags": {
+        "penalty_factor": 3.0
+      },
+      "score": 155.5,
+      "route": [],
+      "rotation": 180,
+      "scale": 0.0088,
+      "center": [
+        51.4543,
+        -0.9781
+      ],
+      "route_length_m": 6126,
+      "route_points": 146,
+      "time_seconds": 56.9,
+      "error": null,
+      "heart_recognizability": 6.4,
+      "hr_explanation": "raw=5.6 abstract=6.9 combined=6.4/10 | lobes=0.96 indent=0.00 cusp=0.64 sym=0.89 dev=0.02 smooth=0.42 closure=1.00 => 5.6/10",
+      "heart_recognizability_v2": 3.7,
+      "hr2_explanation": "raw=5.6 abstract=6.9 manual_v2=3.7/10 | sym=0.89 lobes=0.96 cusp=0.64 indent_pref=0.00 dev=0.02 smooth=0.42 seg_repeat=0.14 pt_repeat=0.16 route_pen=1.87 fit_bonus=0.00"
+    },
+    {
+      "id": "v6prox02_opt",
+      "label": "v6 Prox 0.2 (new shape)",
+      "mode": "optimize",
+      "flags": {
+        "v6_proximity_weight": 0.2
+      },
+      "score": 140.5,
+      "route": [],
+      "rotation": 187,
+      "scale": 0.0088,
+      "center": [
+        51.4543,
+        -0.9781
+      ],
+      "route_length_m": 6247,
+      "route_points": 147,
+      "time_seconds": 57.5,
+      "error": null,
+      "heart_recognizability": 6.3,
+      "hr_explanation": "raw=5.3 abstract=6.9 combined=6.3/10 | lobes=0.92 indent=0.00 cusp=0.56 sym=0.88 dev=0.15 smooth=0.32 closure=1.00 => 5.3/10",
+      "heart_recognizability_v2": 3.3,
+      "hr2_explanation": "raw=5.3 abstract=6.9 manual_v2=3.3/10 | sym=0.88 lobes=0.92 cusp=0.56 indent_pref=0.00 dev=0.15 smooth=0.32 seg_repeat=0.15 pt_repeat=0.16 route_pen=1.69 fit_bonus=0.00"
+    },
+    {
+      "id": "full_heart_fit",
+      "label": "Full Heart Fit",
+      "mode": "fit",
+      "flags": {
+        "indent_enforce": true,
+        "symmetry_weight": 0.5,
+        "indent_weight": 0.5,
+        "force_close": true,
+        "dynamic_densify": true,
+        "spline_k": 3
+      },
+      "score": 131.7,
+      "route": [],
+      "rotation": 180,
+      "scale": 0.009000000000000001,
+      "center": [
+        51.4543,
+        -0.9781
+      ],
+      "route_length_m": 6965,
+      "route_points": 185,
+      "time_seconds": 24.9,
+      "error": null,
+      "heart_recognizability": 6.8,
+      "hr_explanation": "raw=7.2 abstract=6.5 combined=6.8/10 | lobes=0.99 indent=0.80 cusp=0.66 sym=0.88 dev=0.00 smooth=0.35 closure=1.00 => 7.2/10",
+      "heart_recognizability_v2": 5.6,
+      "hr2_explanation": "raw=7.2 abstract=6.5 manual_v2=5.6/10 | sym=0.88 lobes=0.99 cusp=0.66 indent_pref=0.22 dev=0.00 smooth=0.35 seg_repeat=0.12 pt_repeat=0.19 route_pen=1.58 fit_bonus=0.70"
+    },
+    {
+      "id": "full_heart_opt",
+      "label": "Full Heart Opt",
+      "mode": "optimize",
+      "flags": {
+        "indent_enforce": true,
+        "symmetry_weight": 0.5,
+        "indent_weight": 0.5,
+        "force_close": true,
+        "dynamic_densify": true
+      },
+      "score": 133.7,
+      "route": [],
+      "rotation": 173,
+      "scale": 0.0088,
+      "center": [
+        51.4543,
+        -0.9781
+      ],
+      "route_length_m": 5487,
+      "route_points": 137,
+      "time_seconds": 73.8,
+      "error": null,
+      "heart_recognizability": 6.5,
+      "hr_explanation": "raw=6.6 abstract=6.5 combined=6.5/10 | lobes=1.00 indent=0.50 cusp=0.65 sym=0.87 dev=0.03 smooth=0.39 closure=1.00 => 6.6/10",
+      "heart_recognizability_v2": 5.1,
+      "hr2_explanation": "raw=6.6 abstract=6.5 manual_v2=5.1/10 | sym=0.87 lobes=1.00 cusp=0.65 indent_pref=0.89 dev=0.03 smooth=0.39 seg_repeat=0.13 pt_repeat=0.15 route_pen=1.60 fit_bonus=0.00"
+    },
+    {
+      "id": "v84_density_fit",
+      "label": "v8.4 Density+Indent Fit",
+      "mode": "fit",
+      "flags": {
+        "density_auto_scale": true,
+        "indent_enforce": true,
+        "symmetry_weight": 0.5,
+        "indent_weight": 0.5
+      },
+      "score": 127.0,
+      "route": [],
+      "rotation": 165,
+      "scale": 0.009000000000000001,
+      "center": [
+        51.4543,
+        -0.9781
+      ],
+      "route_length_m": 10819,
+      "route_points": 253,
+      "time_seconds": 75.1,
+      "error": null,
+      "heart_recognizability": 6.7,
+      "hr_explanation": "raw=7.2 abstract=6.3 combined=6.7/10 | lobes=0.95 indent=0.80 cusp=0.64 sym=0.86 dev=0.17 smooth=0.33 closure=1.00 => 7.2/10",
+      "heart_recognizability_v2": 3.4,
+      "hr2_explanation": "raw=7.2 abstract=6.3 manual_v2=3.4/10 | sym=0.86 lobes=0.95 cusp=0.64 indent_pref=0.22 dev=0.17 smooth=0.33 seg_repeat=0.33 pt_repeat=0.35 route_pen=1.52 fit_bonus=0.70"
+    },
+    {
+      "id": "v84_density_opt",
+      "label": "v8.4 Density+Indent Opt",
+      "mode": "optimize",
+      "flags": {
+        "density_auto_scale": true,
+        "indent_enforce": true,
+        "symmetry_weight": 0.5,
+        "indent_weight": 0.5
+      },
+      "score": 125.1,
+      "route": [],
+      "rotation": 173,
+      "scale": 0.01,
+      "center": [
+        51.4543,
+        -0.9781
+      ],
+      "route_length_m": 11798,
+      "route_points": 262,
+      "time_seconds": 210.6,
+      "error": null,
+      "heart_recognizability": 6.7,
+      "hr_explanation": "raw=6.3 abstract=7.0 combined=6.7/10 | lobes=0.98 indent=0.30 cusp=0.69 sym=0.90 dev=0.18 smooth=0.29 closure=1.00 => 6.3/10",
+      "heart_recognizability_v2": 3.6,
+      "hr2_explanation": "raw=6.3 abstract=7.0 manual_v2=3.6/10 | sym=0.90 lobes=0.98 cusp=0.69 indent_pref=0.67 dev=0.18 smooth=0.29 seg_repeat=0.27 pt_repeat=0.30 route_pen=1.50 fit_bonus=0.00"
+    },
+    {
+      "id": "v84_hierarchy_fit",
+      "label": "v8.4 Hierarchy+Indent Fit",
+      "mode": "fit",
+      "flags": {
+        "use_road_hierarchy": true,
+        "indent_enforce": true,
+        "symmetry_weight": 0.5,
+        "indent_weight": 0.5
+      },
+      "score": 82.8,
+      "route": [],
+      "rotation": 180,
+      "scale": 0.009000000000000001,
+      "center": [
+        51.4543,
+        -0.9781
+      ],
+      "route_length_m": 6611,
+      "route_points": 147,
+      "time_seconds": 20.3,
+      "error": null,
+      "heart_recognizability": 6.7,
+      "hr_explanation": "raw=6.6 abstract=6.7 combined=6.7/10 | lobes=0.96 indent=0.50 cusp=0.68 sym=0.88 dev=0.00 smooth=0.36 closure=1.00 => 6.6/10",
+      "heart_recognizability_v2": 6.2,
+      "hr2_explanation": "raw=6.6 abstract=6.7 manual_v2=6.2/10 | sym=0.88 lobes=0.96 cusp=0.68 indent_pref=0.89 dev=0.00 smooth=0.36 seg_repeat=0.18 pt_repeat=0.19 route_pen=0.99 fit_bonus=0.70"
+    },
+    {
+      "id": "v84_hierarchy_opt",
+      "label": "v8.4 Hierarchy+Indent Opt",
+      "mode": "optimize",
+      "flags": {
+        "use_road_hierarchy": true,
+        "indent_enforce": true,
+        "symmetry_weight": 0.5,
+        "indent_weight": 0.5
+      },
+      "score": 71.1,
+      "route": [],
+      "rotation": 173,
+      "scale": 0.0088,
+      "center": [
+        51.4543,
+        -0.9781
+      ],
+      "route_length_m": 4827,
+      "route_points": 116,
+      "time_seconds": 58.1,
+      "error": null,
+      "heart_recognizability": 6.4,
+      "hr_explanation": "raw=6.2 abstract=6.6 combined=6.4/10 | lobes=0.99 indent=0.30 cusp=0.61 sym=0.86 dev=0.09 smooth=0.45 closure=1.00 => 6.2/10",
+      "heart_recognizability_v2": 5.5,
+      "hr2_explanation": "raw=6.2 abstract=6.6 manual_v2=5.5/10 | sym=0.86 lobes=0.99 cusp=0.61 indent_pref=0.67 dev=0.09 smooth=0.45 seg_repeat=0.10 pt_repeat=0.11 route_pen=0.85 fit_bonus=0.00"
+    },
+    {
+      "id": "v84_skel_fit",
+      "label": "v8.4 Skeleton Fit",
+      "mode": "fit",
+      "flags": {
+        "use_skeleton_score": true,
+        "skeleton_weight": 0.3,
+        "indent_enforce": true,
+        "symmetry_weight": 0.5,
+        "indent_weight": 0.5,
+        "v84_blend": 0.3
+      },
+      "score": 86.3,
+      "route": [],
+      "rotation": 180,
+      "scale": 0.009000000000000001,
+      "center": [
+        51.4543,
+        -0.9781
+      ],
+      "route_length_m": 6089,
+      "route_points": 140,
+      "time_seconds": 19.9,
+      "error": null,
+      "heart_recognizability": 5.8,
+      "hr_explanation": "raw=6.3 abstract=5.5 combined=5.8/10 | lobes=0.99 indent=0.30 cusp=0.68 sym=0.90 dev=0.00 smooth=0.38 closure=1.00 => 6.3/10",
+      "heart_recognizability_v2": 5.8,
+      "hr2_explanation": "raw=6.3 abstract=5.5 manual_v2=5.8/10 | sym=0.90 lobes=0.99 cusp=0.68 indent_pref=0.67 dev=0.00 smooth=0.38 seg_repeat=0.19 pt_repeat=0.19 route_pen=1.04 fit_bonus=0.70"
+    },
+    {
+      "id": "v84_skel_opt",
+      "label": "v8.4 Skeleton Opt",
+      "mode": "optimize",
+      "flags": {
+        "use_skeleton_score": true,
+        "skeleton_weight": 0.3,
+        "indent_enforce": true,
+        "symmetry_weight": 0.5,
+        "indent_weight": 0.5,
+        "v84_blend": 0.3
+      },
+      "score": 85.7,
+      "route": [],
+      "rotation": 180,
+      "scale": 0.0088,
+      "center": [
+        51.4543,
+        -0.9781
+      ],
+      "route_length_m": 6650,
+      "route_points": 153,
+      "time_seconds": 58.1,
+      "error": null,
+      "heart_recognizability": 5.7,
+      "hr_explanation": "raw=6.4 abstract=5.3 combined=5.7/10 | lobes=0.97 indent=0.50 cusp=0.64 sym=0.87 dev=0.01 smooth=0.32 closure=1.00 => 6.4/10",
+      "heart_recognizability_v2": 5.0,
+      "hr2_explanation": "raw=6.4 abstract=5.3 manual_v2=5.0/10 | sym=0.87 lobes=0.97 cusp=0.64 indent_pref=0.89 dev=0.01 smooth=0.32 seg_repeat=0.20 pt_repeat=0.22 route_pen=1.03 fit_bonus=0.00"
+    },
+    {
+      "id": "v84_ph_fit",
+      "label": "v8.4 PH Topology Fit",
+      "mode": "fit",
+      "flags": {
+        "use_ph_topology": true,
+        "ph_weight": 0.3,
+        "indent_enforce": true,
+        "symmetry_weight": 0.5,
+        "indent_weight": 0.5,
+        "v84_blend": 0.3
+      },
+      "score": 94.3,
+      "route": [],
+      "rotation": 180,
+      "scale": 0.009000000000000001,
+      "center": [
+        51.4543,
+        -0.9781
+      ],
+      "route_length_m": 6089,
+      "route_points": 140,
+      "time_seconds": 24.7,
+      "error": null,
+      "heart_recognizability": 5.8,
+      "hr_explanation": "raw=6.3 abstract=5.5 combined=5.8/10 | lobes=0.99 indent=0.30 cusp=0.68 sym=0.90 dev=0.00 smooth=0.38 closure=1.00 => 6.3/10",
+      "heart_recognizability_v2": 5.7,
+      "hr2_explanation": "raw=6.3 abstract=5.5 manual_v2=5.7/10 | sym=0.90 lobes=0.99 cusp=0.68 indent_pref=0.67 dev=0.00 smooth=0.38 seg_repeat=0.19 pt_repeat=0.19 route_pen=1.13 fit_bonus=0.70"
+    },
+    {
+      "id": "v84_ph_opt",
+      "label": "v8.4 PH Topology Opt",
+      "mode": "optimize",
+      "flags": {
+        "use_ph_topology": true,
+        "ph_weight": 0.3,
+        "indent_enforce": true,
+        "symmetry_weight": 0.5,
+        "indent_weight": 0.5,
+        "v84_blend": 0.3
+      },
+      "score": 97.1,
+      "route": [],
+      "rotation": 180,
+      "scale": 0.0088,
+      "center": [
+        51.4543,
+        -0.9781
+      ],
+      "route_length_m": 6650,
+      "route_points": 153,
+      "time_seconds": 71.3,
+      "error": null,
+      "heart_recognizability": 5.7,
+      "hr_explanation": "raw=6.4 abstract=5.3 combined=5.7/10 | lobes=0.97 indent=0.50 cusp=0.64 sym=0.87 dev=0.01 smooth=0.32 closure=1.00 => 6.4/10",
+      "heart_recognizability_v2": 4.8,
+      "hr2_explanation": "raw=6.4 abstract=5.3 manual_v2=4.8/10 | sym=0.87 lobes=0.97 cusp=0.64 indent_pref=0.89 dev=0.01 smooth=0.32 seg_repeat=0.20 pt_repeat=0.22 route_pen=1.17 fit_bonus=0.00"
+    },
+    {
+      "id": "v84_fgw_opt",
+      "label": "v8.4 FGW Opt",
+      "mode": "optimize",
+      "flags": {
+        "use_fgw": true,
+        "fgw_weight": 0.3,
+        "indent_enforce": true,
+        "symmetry_weight": 0.5,
+        "indent_weight": 0.5,
+        "v84_blend": 0.3
+      },
+      "score": 80.9,
+      "route": [],
+      "rotation": 180,
+      "scale": 0.0088,
+      "center": [
+        51.4543,
+        -0.9781
+      ],
+      "route_length_m": 6650,
+      "route_points": 153,
+      "time_seconds": 61.1,
+      "error": null,
+      "heart_recognizability": 5.7,
+      "hr_explanation": "raw=6.4 abstract=5.3 combined=5.7/10 | lobes=0.97 indent=0.50 cusp=0.64 sym=0.87 dev=0.01 smooth=0.32 closure=1.00 => 6.4/10",
+      "heart_recognizability_v2": 5.0,
+      "hr2_explanation": "raw=6.4 abstract=5.3 manual_v2=5.0/10 | sym=0.87 lobes=0.97 cusp=0.64 indent_pref=0.89 dev=0.01 smooth=0.32 seg_repeat=0.20 pt_repeat=0.22 route_pen=0.97 fit_bonus=0.00"
+    },
+    {
+      "id": "v84_percep_opt",
+      "label": "v8.4 Perceptual Opt",
+      "mode": "optimize",
+      "flags": {
+        "use_perceptual_loss": true,
+        "perceptual_weight": 0.3,
+        "indent_enforce": true,
+        "symmetry_weight": 0.5,
+        "indent_weight": 0.5,
+        "v84_blend": 0.3
+      },
+      "score": 82.5,
+      "route": [],
+      "rotation": 180,
+      "scale": 0.0088,
+      "center": [
+        51.4543,
+        -0.9781
+      ],
+      "route_length_m": 6650,
+      "route_points": 153,
+      "time_seconds": 66.1,
+      "error": null,
+      "heart_recognizability": 5.7,
+      "hr_explanation": "raw=6.4 abstract=5.3 combined=5.7/10 | lobes=0.97 indent=0.50 cusp=0.64 sym=0.87 dev=0.01 smooth=0.32 closure=1.00 => 6.4/10",
+      "heart_recognizability_v2": 5.0,
+      "hr2_explanation": "raw=6.4 abstract=5.3 manual_v2=5.0/10 | sym=0.87 lobes=0.97 cusp=0.64 indent_pref=0.89 dev=0.01 smooth=0.32 seg_repeat=0.20 pt_repeat=0.22 route_pen=0.99 fit_bonus=0.00"
+    },
+    {
+      "id": "v84_skel_hier_fit",
+      "label": "v8.4 Skel+Hier Fit",
+      "mode": "fit",
+      "flags": {
+        "use_skeleton_score": true,
+        "skeleton_weight": 0.3,
+        "use_road_hierarchy": true,
+        "indent_enforce": true,
+        "symmetry_weight": 0.5,
+        "indent_weight": 0.5,
+        "v84_blend": 0.3
+      },
+      "score": 102.6,
+      "route": [],
+      "rotation": 180,
+      "scale": 0.009000000000000001,
+      "center": [
+        51.4543,
+        -0.9781
+      ],
+      "route_length_m": 6611,
+      "route_points": 147,
+      "time_seconds": 20.1,
+      "error": null,
+      "heart_recognizability": 6.7,
+      "hr_explanation": "raw=6.6 abstract=6.7 combined=6.7/10 | lobes=0.96 indent=0.50 cusp=0.68 sym=0.88 dev=0.00 smooth=0.36 closure=1.00 => 6.6/10",
+      "heart_recognizability_v2": 5.9,
+      "hr2_explanation": "raw=6.6 abstract=6.7 manual_v2=5.9/10 | sym=0.88 lobes=0.96 cusp=0.68 indent_pref=0.89 dev=0.00 smooth=0.36 seg_repeat=0.18 pt_repeat=0.19 route_pen=1.23 fit_bonus=0.70"
+    },
+    {
+      "id": "v84_skel_hier_opt",
+      "label": "v8.4 Skel+Hier Opt",
+      "mode": "optimize",
+      "flags": {
+        "use_skeleton_score": true,
+        "skeleton_weight": 0.3,
+        "use_road_hierarchy": true,
+        "indent_enforce": true,
+        "symmetry_weight": 0.5,
+        "indent_weight": 0.5,
+        "v84_blend": 0.3
+      },
+      "score": 88.9,
+      "route": [],
+      "rotation": 173,
+      "scale": 0.0088,
+      "center": [
+        51.4543,
+        -0.9781
+      ],
+      "route_length_m": 4827,
+      "route_points": 116,
+      "time_seconds": 58.3,
+      "error": null,
+      "heart_recognizability": 6.4,
+      "hr_explanation": "raw=6.2 abstract=6.6 combined=6.4/10 | lobes=0.99 indent=0.30 cusp=0.61 sym=0.86 dev=0.09 smooth=0.45 closure=1.00 => 6.2/10",
+      "heart_recognizability_v2": 5.3,
+      "hr2_explanation": "raw=6.2 abstract=6.6 manual_v2=5.3/10 | sym=0.86 lobes=0.99 cusp=0.61 indent_pref=0.67 dev=0.09 smooth=0.45 seg_repeat=0.10 pt_repeat=0.11 route_pen=1.07 fit_bonus=0.00"
+    },
+    {
+      "id": "v84_ph_skel_opt",
+      "label": "v8.4 PH+Skel Opt",
+      "mode": "optimize",
+      "flags": {
+        "use_ph_topology": true,
+        "ph_weight": 0.2,
+        "use_skeleton_score": true,
+        "skeleton_weight": 0.2,
+        "indent_enforce": true,
+        "symmetry_weight": 0.5,
+        "indent_weight": 0.5,
+        "v84_blend": 0.3
+      },
+      "score": 94.9,
+      "route": [],
+      "rotation": 180,
+      "scale": 0.0088,
+      "center": [
+        51.4543,
+        -0.9781
+      ],
+      "route_length_m": 6650,
+      "route_points": 153,
+      "time_seconds": 71.1,
+      "error": null,
+      "heart_recognizability": 5.7,
+      "hr_explanation": "raw=6.4 abstract=5.3 combined=5.7/10 | lobes=0.97 indent=0.50 cusp=0.64 sym=0.87 dev=0.01 smooth=0.32 closure=1.00 => 6.4/10",
+      "heart_recognizability_v2": 4.9,
+      "hr2_explanation": "raw=6.4 abstract=5.3 manual_v2=4.9/10 | sym=0.87 lobes=0.97 cusp=0.64 indent_pref=0.89 dev=0.01 smooth=0.32 seg_repeat=0.20 pt_repeat=0.22 route_pen=1.14 fit_bonus=0.00"
+    },
+    {
+      "id": "v84_dens_hier_skel",
+      "label": "v8.4 Dens+Hier+Skel",
+      "mode": "optimize",
+      "flags": {
+        "density_auto_scale": true,
+        "use_road_hierarchy": true,
+        "use_skeleton_score": true,
+        "skeleton_weight": 0.3,
+        "indent_enforce": true,
+        "symmetry_weight": 0.5,
+        "indent_weight": 0.5,
+        "v84_blend": 0.3
+      },
+      "score": 150.6,
+      "route": [],
+      "rotation": 195,
+      "scale": 0.0088,
+      "center": [
+        51.4543,
+        -0.9781
+      ],
+      "route_length_m": 8903,
+      "route_points": 209,
+      "time_seconds": 215.2,
+      "error": null,
+      "heart_recognizability": 6.5,
+      "hr_explanation": "raw=6.3 abstract=6.6 combined=6.5/10 | lobes=0.92 indent=0.80 cusp=0.28 sym=0.80 dev=0.06 smooth=0.31 closure=1.00 => 6.3/10",
+      "heart_recognizability_v2": 2.0,
+      "hr2_explanation": "raw=6.3 abstract=6.6 manual_v2=2.0/10 | sym=0.80 lobes=0.92 cusp=0.28 indent_pref=0.22 dev=0.06 smooth=0.31 seg_repeat=0.32 pt_repeat=0.34 route_pen=1.81 fit_bonus=0.00"
+    },
+    {
+      "id": "v84_percep_ph_opt",
+      "label": "v8.4 Percep+PH Opt",
+      "mode": "optimize",
+      "flags": {
+        "use_perceptual_loss": true,
+        "perceptual_weight": 0.2,
+        "use_ph_topology": true,
+        "ph_weight": 0.2,
+        "indent_enforce": true,
+        "symmetry_weight": 0.5,
+        "indent_weight": 0.5,
+        "v84_blend": 0.3
+      },
+      "score": 92.7,
+      "route": [],
+      "rotation": 180,
+      "scale": 0.0088,
+      "center": [
+        51.4543,
+        -0.9781
+      ],
+      "route_length_m": 6650,
+      "route_points": 153,
+      "time_seconds": 74.1,
+      "error": null,
+      "heart_recognizability": 5.7,
+      "hr_explanation": "raw=6.4 abstract=5.3 combined=5.7/10 | lobes=0.97 indent=0.50 cusp=0.64 sym=0.87 dev=0.01 smooth=0.32 closure=1.00 => 6.4/10",
+      "heart_recognizability_v2": 4.9,
+      "hr2_explanation": "raw=6.4 abstract=5.3 manual_v2=4.9/10 | sym=0.87 lobes=0.97 cusp=0.64 indent_pref=0.89 dev=0.01 smooth=0.32 seg_repeat=0.20 pt_repeat=0.22 route_pen=1.11 fit_bonus=0.00"
+    },
+    {
+      "id": "v84_hier_dyn_opt",
+      "label": "v8.4 Hier+Dynamic Opt",
+      "mode": "optimize",
+      "flags": {
+        "use_road_hierarchy": true,
+        "dynamic_densify": true,
+        "indent_enforce": true,
+        "symmetry_weight": 0.5,
+        "indent_weight": 0.5
+      },
+      "score": 83.9,
+      "route": [],
+      "rotation": 180,
+      "scale": 0.0088,
+      "center": [
+        51.4543,
+        -0.9781
+      ],
+      "route_length_m": 6790,
+      "route_points": 155,
+      "time_seconds": 73.9,
+      "error": null,
+      "heart_recognizability": 7.1,
+      "hr_explanation": "raw=7.1 abstract=7.1 combined=7.1/10 | lobes=0.97 indent=0.80 cusp=0.67 sym=0.86 dev=0.01 smooth=0.35 closure=1.00 => 7.1/10",
+      "heart_recognizability_v2": 4.9,
+      "hr2_explanation": "raw=7.1 abstract=7.1 manual_v2=4.9/10 | sym=0.86 lobes=0.97 cusp=0.67 indent_pref=0.22 dev=0.01 smooth=0.35 seg_repeat=0.19 pt_repeat=0.21 route_pen=1.01 fit_bonus=0.00"
+    },
+    {
+      "id": "v84_skel_spline_fit",
+      "label": "v8.4 Skel+Spline Fit",
+      "mode": "fit",
+      "flags": {
+        "use_skeleton_score": true,
+        "skeleton_weight": 0.3,
+        "spline_k": 3,
+        "indent_enforce": true,
+        "symmetry_weight": 0.5,
+        "indent_weight": 0.5,
+        "v84_blend": 0.3
+      },
+      "score": 89.9,
+      "route": [],
+      "rotation": 180,
+      "scale": 0.009000000000000001,
+      "center": [
+        51.4543,
+        -0.9781
+      ],
+      "route_length_m": 6902,
+      "route_points": 185,
+      "time_seconds": 20.0,
+      "error": null,
+      "heart_recognizability": 5.8,
+      "hr_explanation": "raw=5.6 abstract=6.0 combined=5.8/10 | lobes=0.99 indent=0.00 cusp=0.64 sym=0.90 dev=0.00 smooth=0.37 closure=1.00 => 5.6/10",
+      "heart_recognizability_v2": 5.1,
+      "hr2_explanation": "raw=5.6 abstract=6.0 manual_v2=5.1/10 | sym=0.90 lobes=0.99 cusp=0.64 indent_pref=0.00 dev=0.00 smooth=0.37 seg_repeat=0.15 pt_repeat=0.22 route_pen=1.08 fit_bonus=0.70"
+    },
+    {
+      "id": "v84_skel_b20",
+      "label": "v8.4 Skel blend=0.2",
+      "mode": "optimize",
+      "flags": {
+        "use_skeleton_score": true,
+        "skeleton_weight": 0.3,
+        "indent_enforce": true,
+        "symmetry_weight": 0.5,
+        "indent_weight": 0.5,
+        "v84_blend": 0.2
+      },
+      "score": 95.7,
+      "route": [],
+      "rotation": 180,
+      "scale": 0.0088,
+      "center": [
+        51.4543,
+        -0.9781
+      ],
+      "route_length_m": 6650,
+      "route_points": 153,
+      "time_seconds": 57.7,
+      "error": null,
+      "heart_recognizability": 5.7,
+      "hr_explanation": "raw=6.4 abstract=5.3 combined=5.7/10 | lobes=0.97 indent=0.50 cusp=0.64 sym=0.87 dev=0.01 smooth=0.32 closure=1.00 => 6.4/10",
+      "heart_recognizability_v2": 4.9,
+      "hr2_explanation": "raw=6.4 abstract=5.3 manual_v2=4.9/10 | sym=0.87 lobes=0.97 cusp=0.64 indent_pref=0.89 dev=0.01 smooth=0.32 seg_repeat=0.20 pt_repeat=0.22 route_pen=1.15 fit_bonus=0.00"
+    },
+    {
+      "id": "v84_skel_b40",
+      "label": "v8.4 Skel blend=0.4",
+      "mode": "optimize",
+      "flags": {
+        "use_skeleton_score": true,
+        "skeleton_weight": 0.3,
+        "indent_enforce": true,
+        "symmetry_weight": 0.5,
+        "indent_weight": 0.5,
+        "v84_blend": 0.4
+      },
+      "score": 75.7,
+      "route": [],
+      "rotation": 180,
+      "scale": 0.0088,
+      "center": [
+        51.4543,
+        -0.9781
+      ],
+      "route_length_m": 6650,
+      "route_points": 153,
+      "time_seconds": 57.7,
+      "error": null,
+      "heart_recognizability": 5.7,
+      "hr_explanation": "raw=6.4 abstract=5.3 combined=5.7/10 | lobes=0.97 indent=0.50 cusp=0.64 sym=0.87 dev=0.01 smooth=0.32 closure=1.00 => 6.4/10",
+      "heart_recognizability_v2": 5.1,
+      "hr2_explanation": "raw=6.4 abstract=5.3 manual_v2=5.1/10 | sym=0.87 lobes=0.97 cusp=0.64 indent_pref=0.89 dev=0.01 smooth=0.32 seg_repeat=0.20 pt_repeat=0.22 route_pen=0.91 fit_bonus=0.00"
+    },
+    {
+      "id": "v84_hier_pen20",
+      "label": "v8.4 Hier+Pen2.0",
+      "mode": "optimize",
+      "flags": {
+        "use_road_hierarchy": true,
+        "penalty_factor": 2.0,
+        "indent_enforce": true,
+        "symmetry_weight": 0.5,
+        "indent_weight": 0.5
+      },
+      "score": 68.4,
+      "route": [],
+      "rotation": 180,
+      "scale": 0.0088,
+      "center": [
+        51.4543,
+        -0.9781
+      ],
+      "route_length_m": 6435,
+      "route_points": 152,
+      "time_seconds": 57.6,
+      "error": null,
+      "heart_recognizability": 6.9,
+      "hr_explanation": "raw=7.1 abstract=6.8 combined=6.9/10 | lobes=0.96 indent=0.80 cusp=0.63 sym=0.87 dev=0.02 smooth=0.36 closure=1.00 => 7.1/10",
+      "heart_recognizability_v2": 4.8,
+      "hr2_explanation": "raw=7.1 abstract=6.8 manual_v2=4.8/10 | sym=0.87 lobes=0.96 cusp=0.63 indent_pref=0.22 dev=0.02 smooth=0.36 seg_repeat=0.22 pt_repeat=0.22 route_pen=0.82 fit_bonus=0.00"
+    },
+    {
+      "id": "v84_hier_pen30",
+      "label": "v8.4 Hier+Pen3.0",
+      "mode": "optimize",
+      "flags": {
+        "use_road_hierarchy": true,
+        "penalty_factor": 3.0,
+        "indent_enforce": true,
+        "symmetry_weight": 0.5,
+        "indent_weight": 0.5
+      },
+      "score": 68.4,
+      "route": [],
+      "rotation": 180,
+      "scale": 0.0088,
+      "center": [
+        51.4543,
+        -0.9781
+      ],
+      "route_length_m": 6435,
+      "route_points": 152,
+      "time_seconds": 57.8,
+      "error": null,
+      "heart_recognizability": 6.9,
+      "hr_explanation": "raw=7.1 abstract=6.8 combined=6.9/10 | lobes=0.96 indent=0.80 cusp=0.63 sym=0.87 dev=0.02 smooth=0.36 closure=1.00 => 7.1/10",
+      "heart_recognizability_v2": 4.8,
+      "hr2_explanation": "raw=7.1 abstract=6.8 manual_v2=4.8/10 | sym=0.87 lobes=0.96 cusp=0.63 indent_pref=0.22 dev=0.02 smooth=0.36 seg_repeat=0.22 pt_repeat=0.22 route_pen=0.82 fit_bonus=0.00"
+    },
+    {
+      "id": "v84_full_fit",
+      "label": "v8.4 Full Fit",
+      "mode": "fit",
+      "flags": {
+        "density_auto_scale": true,
+        "use_road_hierarchy": true,
+        "use_skeleton_score": true,
+        "skeleton_weight": 0.2,
+        "use_ph_topology": true,
+        "ph_weight": 0.2,
+        "indent_enforce": true,
+        "symmetry_weight": 0.5,
+        "indent_weight": 0.5,
+        "force_close": true,
+        "v84_blend": 0.3
+      },
+      "score": 174.6,
+      "route": [],
+      "rotation": 165,
+      "scale": 0.01,
+      "center": [
+        51.4543,
+        -0.9781
+      ],
+      "route_length_m": 12121,
+      "route_points": 261,
+      "time_seconds": 82.2,
+      "error": null,
+      "heart_recognizability": 6.1,
+      "hr_explanation": "raw=6.6 abstract=5.8 combined=6.1/10 | lobes=0.92 indent=0.50 cusp=0.72 sym=0.87 dev=0.22 smooth=0.32 closure=1.00 => 6.6/10",
+      "heart_recognizability_v2": 3.5,
+      "hr2_explanation": "raw=6.6 abstract=5.8 manual_v2=3.5/10 | sym=0.87 lobes=0.92 cusp=0.72 indent_pref=0.89 dev=0.22 smooth=0.32 seg_repeat=0.28 pt_repeat=0.32 route_pen=2.10 fit_bonus=0.70"
+    },
+    {
+      "id": "v84_full_opt",
+      "label": "v8.4 Full Opt",
+      "mode": "optimize",
+      "flags": {
+        "density_auto_scale": true,
+        "use_road_hierarchy": true,
+        "use_skeleton_score": true,
+        "skeleton_weight": 0.2,
+        "use_ph_topology": true,
+        "ph_weight": 0.2,
+        "indent_enforce": true,
+        "symmetry_weight": 0.5,
+        "indent_weight": 0.5,
+        "force_close": true,
+        "dynamic_densify": true,
+        "v84_blend": 0.3
+      },
+      "score": 161.1,
+      "route": [],
+      "rotation": 195,
+      "scale": 0.0088,
+      "center": [
+        51.4543,
+        -0.9781
+      ],
+      "route_length_m": 8886,
+      "route_points": 209,
+      "time_seconds": 244.3,
+      "error": null,
+      "heart_recognizability": 6.5,
+      "hr_explanation": "raw=6.3 abstract=6.7 combined=6.5/10 | lobes=0.92 indent=0.80 cusp=0.28 sym=0.80 dev=0.06 smooth=0.34 closure=1.00 => 6.3/10",
+      "heart_recognizability_v2": 2.0,
+      "hr2_explanation": "raw=6.3 abstract=6.7 manual_v2=2.0/10 | sym=0.80 lobes=0.92 cusp=0.28 indent_pref=0.22 dev=0.06 smooth=0.34 seg_repeat=0.29 pt_repeat=0.32 route_pen=1.93 fit_bonus=0.00"
+    },
+    {
+      "id": "v85_wide_default",
+      "label": "v8.5 Wide Default",
+      "mode": "optimize",
+      "flags": {
+        "wide_search": true,
+        "indent_enforce": true,
+        "symmetry_weight": 0.5,
+        "indent_weight": 0.5
+      },
+      "score": 124.0,
+      "route": [],
+      "rotation": 159.5,
+      "scale": 0.0049104000000000005,
+      "center": [
+        51.424600000000005,
+        -0.9319
+      ],
+      "route_length_m": 4735,
+      "route_points": 147,
+      "time_seconds": 77.2,
+      "heart_recognizability": 7.4,
+      "hr_explanation": "raw=7.7 abstract=7.2 combined=7.4/10 | lobes=0.98 indent=1.00 cusp=0.64 sym=0.86 dev=0.16 smooth=0.44 closure=1.00 => 7.7/10",
+      "error": null,
+      "heart_recognizability_v2": 3.2,
+      "hr2_explanation": "raw=7.7 abstract=7.2 manual_v2=3.2/10 | sym=0.86 lobes=0.98 cusp=0.64 indent_pref=0.00 dev=0.16 smooth=0.44 seg_repeat=0.29 pt_repeat=0.31 route_pen=1.49 fit_bonus=0.00"
+    },
+    {
+      "id": "v85_wide_hier",
+      "label": "v8.5 Wide+Hierarchy",
+      "mode": "optimize",
+      "flags": {
+        "wide_search": true,
+        "use_road_hierarchy": true,
+        "indent_enforce": true,
+        "symmetry_weight": 0.5,
+        "indent_weight": 0.5
+      },
+      "score": 76.5,
+      "route": [],
+      "rotation": 157.0,
+      "scale": 0.0049104000000000005,
+      "center": [
+        51.424600000000005,
+        -0.9319
+      ],
+      "route_length_m": 4379,
+      "route_points": 133,
+      "time_seconds": 77.7,
+      "heart_recognizability": 7.8,
+      "hr_explanation": "raw=7.8 abstract=7.8 combined=7.8/10 | lobes=0.98 indent=1.00 cusp=0.67 sym=0.86 dev=0.20 smooth=0.44 closure=1.00 => 7.8/10",
+      "error": null,
+      "heart_recognizability_v2": 4.0,
+      "hr2_explanation": "raw=7.8 abstract=7.8 manual_v2=4.0/10 | sym=0.86 lobes=0.98 cusp=0.67 indent_pref=0.00 dev=0.20 smooth=0.44 seg_repeat=0.26 pt_repeat=0.29 route_pen=0.92 fit_bonus=0.00"
+    },
+    {
+      "id": "v85_wide_pen20",
+      "label": "v8.5 Wide+Pen2.0",
+      "mode": "optimize",
+      "flags": {
+        "wide_search": true,
+        "penalty_factor": 2.0,
+        "indent_enforce": true,
+        "symmetry_weight": 0.5,
+        "indent_weight": 0.5
+      },
+      "score": 124.7,
+      "route": [],
+      "rotation": 153.0,
+      "scale": 0.0049104000000000005,
+      "center": [
+        51.424600000000005,
+        -0.9319
+      ],
+      "route_length_m": 4567,
+      "route_points": 146,
+      "time_seconds": 75.5,
+      "heart_recognizability": 7.8,
+      "hr_explanation": "raw=7.6 abstract=8.0 combined=7.8/10 | lobes=0.98 indent=1.00 cusp=0.57 sym=0.84 dev=0.22 smooth=0.40 closure=1.00 => 7.6/10",
+      "error": null,
+      "heart_recognizability_v2": 3.1,
+      "hr2_explanation": "raw=7.6 abstract=8.0 manual_v2=3.1/10 | sym=0.84 lobes=0.98 cusp=0.57 indent_pref=0.00 dev=0.22 smooth=0.40 seg_repeat=0.27 pt_repeat=0.30 route_pen=1.50 fit_bonus=0.00"
+    },
+    {
+      "id": "v85_wide_hier_pen30",
+      "label": "v8.5 Wide+Hier+Pen3.0",
+      "mode": "optimize",
+      "flags": {
+        "wide_search": true,
+        "use_road_hierarchy": true,
+        "penalty_factor": 3.0,
+        "indent_enforce": true,
+        "symmetry_weight": 0.5,
+        "indent_weight": 0.5
+      },
+      "score": 76.5,
+      "route": [],
+      "rotation": 157.0,
+      "scale": 0.0049104000000000005,
+      "center": [
+        51.424600000000005,
+        -0.9319
+      ],
+      "route_length_m": 4379,
+      "route_points": 133,
+      "time_seconds": 76.4,
+      "heart_recognizability": 7.8,
+      "hr_explanation": "raw=7.8 abstract=7.8 combined=7.8/10 | lobes=0.98 indent=1.00 cusp=0.67 sym=0.86 dev=0.20 smooth=0.44 closure=1.00 => 7.8/10",
+      "error": null,
+      "heart_recognizability_v2": 4.0,
+      "hr2_explanation": "raw=7.8 abstract=7.8 manual_v2=4.0/10 | sym=0.86 lobes=0.98 cusp=0.67 indent_pref=0.00 dev=0.20 smooth=0.44 seg_repeat=0.26 pt_repeat=0.29 route_pen=0.92 fit_bonus=0.00"
+    },
+    {
+      "id": "v85_wide_2km",
+      "label": "v8.5 Wide 2km",
+      "mode": "optimize",
+      "flags": {
+        "wide_search": true,
+        "wide_km_range": 2.0,
+        "wide_offset_steps": 3,
+        "indent_enforce": true,
+        "symmetry_weight": 0.5,
+        "indent_weight": 0.5
+      },
+      "score": 87.5,
+      "route": [],
+      "rotation": 325.0,
+      "scale": 0.00376,
+      "center": [
+        51.451600000000006,
+        -0.9682999999999999
+      ],
+      "route_length_m": 3053,
+      "route_points": 72,
+      "time_seconds": 85.0,
+      "heart_recognizability": 7.5,
+      "hr_explanation": "raw=7.5 abstract=7.5 combined=7.5/10 | lobes=0.96 indent=1.00 cusp=0.49 sym=0.84 dev=0.15 smooth=0.57 closure=1.00 => 7.5/10",
+      "error": null,
+      "heart_recognizability_v2": 2.9,
+      "hr2_explanation": "raw=7.5 abstract=7.5 manual_v2=2.9/10 | sym=0.84 lobes=0.96 cusp=0.49 indent_pref=0.00 dev=0.15 smooth=0.57 seg_repeat=0.32 pt_repeat=0.36 route_pen=1.05 fit_bonus=0.00"
+    },
+    {
+      "id": "v85_wide_6km",
+      "label": "v8.5 Wide 6km",
+      "mode": "optimize",
+      "flags": {
+        "wide_search": true,
+        "wide_km_range": 6.0,
+        "wide_offset_steps": 5,
+        "wide_n_coarse": 300,
+        "wide_n_refine": 40,
+        "wide_n_fine": 15,
+        "indent_enforce": true,
+        "symmetry_weight": 0.5,
+        "indent_weight": 0.5
+      },
+      "score": 97.3,
+      "route": [],
+      "rotation": 228.0,
+      "scale": 0.00352,
+      "center": [
+        51.455650000000006,
+        -0.9673
+      ],
+      "route_length_m": 2166,
+      "route_points": 76,
+      "time_seconds": 87.6,
+      "heart_recognizability": 4.0,
+      "hr_explanation": "raw=5.6 abstract=2.9 combined=4.0/10 | lobes=0.92 indent=0.00 cusp=0.56 sym=0.76 dev=0.35 smooth=0.58 closure=1.00 => 5.6/10",
+      "error": null,
+      "heart_recognizability_v2": 2.4,
+      "hr2_explanation": "raw=5.6 abstract=2.9 manual_v2=2.4/10 | sym=0.76 lobes=0.92 cusp=0.56 indent_pref=0.00 dev=0.35 smooth=0.58 seg_repeat=0.15 pt_repeat=0.17 route_pen=1.17 fit_bonus=0.00"
+    },
+    {
+      "id": "v85_wide_hier_skel",
+      "label": "v8.5 Wide+Hier+Skel",
+      "mode": "optimize",
+      "flags": {
+        "wide_search": true,
+        "use_road_hierarchy": true,
+        "use_skeleton_score": true,
+        "skeleton_weight": 0.3,
+        "indent_enforce": true,
+        "symmetry_weight": 0.5,
+        "indent_weight": 0.5,
+        "v84_blend": 0.3
+      },
+      "score": 95.0,
+      "route": [],
+      "rotation": 157.0,
+      "scale": 0.0049104000000000005,
+      "center": [
+        51.424600000000005,
+        -0.9319
+      ],
+      "route_length_m": 4379,
+      "route_points": 133,
+      "time_seconds": 81.2,
+      "heart_recognizability": 7.8,
+      "hr_explanation": "raw=7.8 abstract=7.8 combined=7.8/10 | lobes=0.98 indent=1.00 cusp=0.67 sym=0.86 dev=0.20 smooth=0.44 closure=1.00 => 7.8/10",
+      "error": null,
+      "heart_recognizability_v2": 3.8,
+      "hr2_explanation": "raw=7.8 abstract=7.8 manual_v2=3.8/10 | sym=0.86 lobes=0.98 cusp=0.67 indent_pref=0.00 dev=0.20 smooth=0.44 seg_repeat=0.26 pt_repeat=0.29 route_pen=1.14 fit_bonus=0.00"
+    },
+    {
+      "id": "v85_wide_full",
+      "label": "v8.5 Wide Full",
+      "mode": "optimize",
+      "flags": {
+        "wide_search": true,
+        "use_road_hierarchy": true,
+        "use_skeleton_score": true,
+        "skeleton_weight": 0.2,
+        "use_ph_topology": true,
+        "ph_weight": 0.2,
+        "indent_enforce": true,
+        "symmetry_weight": 0.5,
+        "indent_weight": 0.5,
+        "v84_blend": 0.3
+      },
+      "score": 104.3,
+      "route": [],
+      "rotation": 157.0,
+      "scale": 0.0049104000000000005,
+      "center": [
+        51.424600000000005,
+        -0.9319
+      ],
+      "route_length_m": 4379,
+      "route_points": 133,
+      "time_seconds": 100.5,
+      "heart_recognizability": 7.8,
+      "hr_explanation": "raw=7.8 abstract=7.8 combined=7.8/10 | lobes=0.98 indent=1.00 cusp=0.67 sym=0.86 dev=0.20 smooth=0.44 closure=1.00 => 7.8/10",
+      "error": null,
+      "heart_recognizability_v2": 3.7,
+      "hr2_explanation": "raw=7.8 abstract=7.8 manual_v2=3.7/10 | sym=0.86 lobes=0.98 cusp=0.67 indent_pref=0.00 dev=0.20 smooth=0.44 seg_repeat=0.26 pt_repeat=0.29 route_pen=1.25 fit_bonus=0.00"
+    },
+    {
+      "id": "v86_open_valentine_fit",
+      "label": "v8.6 Open Valentine Fit",
+      "mode": "fit",
+      "flags": {
+        "graph_mode": "open_space",
+        "graph_dist": 4500,
+        "shape_kind": "valentine",
+        "indent_enforce": true,
+        "symmetry_weight": 0.7,
+        "indent_weight": 0.6,
+        "force_close": true,
+        "dynamic_densify": true,
+        "use_road_hierarchy": true
+      },
+      "score": 78.5,
+      "route": [],
+      "rotation": 180,
+      "scale": 0.01,
+      "center": [
+        51.4543,
+        -0.9661
+      ],
+      "route_length_m": 8660,
+      "route_points": 248,
+      "time_seconds": 31.7,
+      "heart_recognizability": 6.1,
+      "hr_explanation": "raw=6.5 abstract=5.9 combined=6.1/10 | lobes=0.98 indent=0.80 cusp=0.21 sym=0.91 dev=0.00 smooth=0.34 closure=1.00 => 6.5/10",
+      "heart_recognizability_v2": 5.3,
+      "hr2_explanation": "raw=6.5 abstract=5.9 manual_v2=5.3/10 | sym=0.91 lobes=0.98 cusp=0.21 indent_pref=0.22 dev=0.00 smooth=0.34 seg_repeat=0.16 pt_repeat=0.19 route_pen=0.94 fit_bonus=0.70",
+      "error": null
+    },
+    {
+      "id": "v86_open_cardioid_opt",
+      "label": "v8.6 Open Cardioid Opt",
+      "mode": "optimize",
+      "flags": {
+        "graph_mode": "open_space",
+        "graph_dist": 4500,
+        "shape_kind": "cardioid",
+        "indent_enforce": true,
+        "symmetry_weight": 0.7,
+        "indent_weight": 0.6,
+        "force_close": true,
+        "dynamic_densify": true,
+        "use_road_hierarchy": true,
+        "penalty_factor": 2.0
+      },
+      "score": 66.3,
+      "route": [],
+      "rotation": 97,
+      "scale": 0.0088,
+      "center": [
+        51.4543,
+        -0.9661
+      ],
+      "route_length_m": 7578,
+      "route_points": 189,
+      "time_seconds": 94.6,
+      "heart_recognizability": 6.2,
+      "hr_explanation": "raw=5.7 abstract=6.5 combined=6.2/10 | lobes=0.92 indent=0.00 cusp=0.65 sym=0.87 dev=0.28 smooth=0.40 closure=1.00 => 5.7/10",
+      "heart_recognizability_v2": 4.4,
+      "hr2_explanation": "raw=5.7 abstract=6.5 manual_v2=4.4/10 | sym=0.87 lobes=0.92 cusp=0.65 indent_pref=0.00 dev=0.28 smooth=0.40 seg_repeat=0.10 pt_repeat=0.12 route_pen=0.80 fit_bonus=0.00",
+      "error": null
+    },
+    {
+      "id": "v86_open_lowpoly_fit",
+      "label": "v8.6 Open Lowpoly Fit",
+      "mode": "fit",
+      "flags": {
+        "graph_mode": "open_space",
+        "graph_dist": 4200,
+        "shape_kind": "lowpoly",
+        "indent_enforce": true,
+        "symmetry_weight": 0.6,
+        "indent_weight": 0.6,
+        "force_close": true,
+        "use_road_hierarchy": true
+      },
+      "score": 107.1,
+      "route": [],
+      "rotation": 165,
+      "scale": 0.01,
+      "center": [
+        51.4543,
+        -0.9661
+      ],
+      "route_length_m": 6880,
+      "route_points": 200,
+      "time_seconds": 28.5,
+      "heart_recognizability": 7.3,
+      "hr_explanation": "raw=7.1 abstract=7.4 combined=7.3/10 | lobes=0.97 indent=0.80 cusp=0.58 sym=0.84 dev=0.03 smooth=0.45 closure=1.00 => 7.1/10",
+      "heart_recognizability_v2": 5.6,
+      "hr2_explanation": "raw=7.1 abstract=7.4 manual_v2=5.6/10 | sym=0.84 lobes=0.97 cusp=0.58 indent_pref=0.22 dev=0.03 smooth=0.45 seg_repeat=0.13 pt_repeat=0.14 route_pen=1.28 fit_bonus=0.70",
+      "error": null
+    },
+    {
+      "id": "v86_open_handdrawn_wide",
+      "label": "v8.6 Open Handdrawn Wide",
+      "mode": "optimize",
+      "flags": {
+        "graph_mode": "open_space",
+        "graph_dist": 5000,
+        "shape_kind": "handdrawn_contour",
+        "wide_search": true,
+        "wide_km_range": 3.0,
+        "wide_offset_steps": 4,
+        "indent_enforce": true,
+        "symmetry_weight": 0.7,
+        "indent_weight": 0.6,
+        "use_road_hierarchy": true,
+        "penalty_factor": 2.0
+      },
+      "score": 61.2,
+      "route": [],
+      "rotation": 207.0,
+      "scale": 0.00352,
+      "center": [
+        51.455650000000006,
+        -0.9672999999999999
+      ],
+      "route_length_m": 3767,
+      "route_points": 153,
+      "time_seconds": 118.5,
+      "heart_recognizability": 6.9,
+      "hr_explanation": "raw=7.0 abstract=6.9 combined=6.9/10 | lobes=0.95 indent=0.50 cusp=0.75 sym=0.86 dev=0.33 smooth=0.45 closure=1.00 => 7.0/10",
+      "heart_recognizability_v2": 3.6,
+      "hr2_explanation": "raw=7.0 abstract=6.9 manual_v2=3.6/10 | sym=0.86 lobes=0.95 cusp=0.75 indent_pref=0.89 dev=0.33 smooth=0.45 seg_repeat=0.34 pt_repeat=0.36 route_pen=0.73 fit_bonus=0.00",
+      "error": null
+    },
+    {
+      "id": "v86_open_png_ga",
+      "label": "v8.6 Open PNG GA",
+      "mode": "optimize",
+      "flags": {
+        "graph_mode": "open_space",
+        "graph_dist": 5000,
+        "shape_kind": "simple_png_contour",
+        "ga_search": true,
+        "ga_generations": 4,
+        "ga_population": 10,
+        "ga_scale_min": 0.01,
+        "ga_scale_max": 0.028,
+        "ga_km_range": 1.7,
+        "indent_enforce": true,
+        "symmetry_weight": 0.7,
+        "indent_weight": 0.6,
+        "force_close": true,
+        "dynamic_densify": true,
+        "use_road_hierarchy": true,
+        "penalty_factor": 2.0
+      },
+      "score": 44.4,
+      "route": [],
+      "rotation": 300.6,
+      "scale": 0.01,
+      "center": [
+        51.45401499330975,
+        -0.9790252609327756
+      ],
+      "route_length_m": 6883,
+      "route_points": 155,
+      "time_seconds": 56.7,
+      "heart_recognizability": 6.3,
+      "hr_explanation": "raw=6.4 abstract=6.2 combined=6.3/10 | lobes=0.98 indent=0.50 cusp=0.53 sym=0.86 dev=0.03 smooth=0.38 closure=1.00 => 6.4/10",
+      "heart_recognizability_v2": 5.6,
+      "hr2_explanation": "raw=6.4 abstract=6.2 manual_v2=5.6/10 | sym=0.86 lobes=0.98 cusp=0.53 indent_pref=0.89 dev=0.03 smooth=0.38 seg_repeat=0.17 pt_repeat=0.18 route_pen=0.53 fit_bonus=0.00",
+      "error": null
+    },
+    {
+      "id": "v86_open_taubin_ga",
+      "label": "v8.6 Open Taubin GA",
+      "mode": "optimize",
+      "flags": {
+        "graph_mode": "open_space",
+        "graph_dist": 5000,
+        "shape_kind": "taubin_like",
+        "ga_search": true,
+        "ga_generations": 5,
+        "ga_population": 12,
+        "ga_scale_min": 0.011,
+        "ga_scale_max": 0.03,
+        "ga_km_range": 2.0,
+        "indent_enforce": true,
+        "symmetry_weight": 0.8,
+        "indent_weight": 0.7,
+        "force_close": true,
+        "dynamic_densify": true,
+        "use_road_hierarchy": true,
+        "penalty_factor": 2.5
+      },
+      "score": 36.6,
+      "route": [],
+      "rotation": 179.4,
+      "scale": 0.011,
+      "center": [
+        51.45449498754005,
+        -0.9787513161026443
+      ],
+      "route_length_m": 6260,
+      "route_points": 136,
+      "time_seconds": 100.9,
+      "heart_recognizability": 6.8,
+      "hr_explanation": "raw=6.6 abstract=6.9 combined=6.8/10 | lobes=0.96 indent=0.50 cusp=0.64 sym=0.88 dev=0.00 smooth=0.48 closure=1.00 => 6.6/10",
+      "heart_recognizability_v2": 6.7,
+      "hr2_explanation": "raw=6.6 abstract=6.9 manual_v2=6.7/10 | sym=0.88 lobes=0.96 cusp=0.64 indent_pref=0.89 dev=0.00 smooth=0.48 seg_repeat=0.08 pt_repeat=0.10 route_pen=0.44 fit_bonus=0.00",
+      "error": null
+    }
+  ]
+}

@@ -753,6 +753,42 @@ def _smoothness_score(pts, is_gps=False):
     return float(score)
 
 
+def _heart_component_scores(pts, is_gps=False):
+    """Return the recognizability component scores used by HR scoring."""
+    pa = np.asarray(pts, dtype=np.float64)
+    if len(pa) < 10:
+        return None
+
+    return {
+        'closure': _closure_score(pa, is_gps=is_gps),
+        'symmetry': _symmetry_score(pa, is_gps=is_gps),
+        'deviation': _deviation_score(pa, is_gps=is_gps),
+        'lobes': _lobes_score(pa, is_gps=is_gps),
+        'indent': _indent_score(pa, is_gps=is_gps),
+        'cusp': _cusp_score(pa, is_gps=is_gps),
+        'smoothness': _smoothness_score(pa, is_gps=is_gps),
+    }
+
+
+def _route_retrace_metrics(route):
+    """Estimate how much the route visually retraces itself."""
+    if not route or len(route) < 2:
+        return {'seg_repeat': 0.0, 'pt_repeat': 0.0}
+
+    rounded = [tuple(round(float(coord), 7) for coord in pt) for pt in route]
+    unique_pts = len(set(rounded))
+    pt_repeat = 1.0 - unique_pts / max(len(rounded), 1)
+
+    segments = [tuple(sorted((a, b))) for a, b in zip(rounded, rounded[1:])]
+    unique_segments = len(set(segments)) if segments else 0
+    seg_repeat = 1.0 - unique_segments / max(len(segments), 1) if segments else 0.0
+
+    return {
+        'seg_repeat': float(max(0.0, seg_repeat)),
+        'pt_repeat': float(max(0.0, pt_repeat)),
+    }
+
+
 def heart_recognizability_score(pts, weights=None, is_gps=False):
     """Score how recognizable a shape is as a heart (0.0 – 10.0).
 
@@ -770,18 +806,17 @@ def heart_recognizability_score(pts, weights=None, is_gps=False):
     Returns:
         (score: float, explanation: str)
     """
-    pa = np.asarray(pts, dtype=np.float64)
-    if len(pa) < 10:
+    components = _heart_component_scores(pts, is_gps=is_gps)
+    if components is None:
         return (0.0, "Too few points (<10)")
 
-    # Compute sub-scores
-    closure = _closure_score(pa, is_gps=is_gps)
-    symmetry = _symmetry_score(pa, is_gps=is_gps)
-    deviation = _deviation_score(pa, is_gps=is_gps)
-    lobes = _lobes_score(pa, is_gps=is_gps)
-    indent = _indent_score(pa, is_gps=is_gps)
-    cusp = _cusp_score(pa, is_gps=is_gps)
-    smoothness = _smoothness_score(pa, is_gps=is_gps)
+    closure = components['closure']
+    symmetry = components['symmetry']
+    deviation = components['deviation']
+    lobes = components['lobes']
+    indent = components['indent']
+    cusp = components['cusp']
+    smoothness = components['smoothness']
 
     # Closure is a gate: if not closed, max score is 5.0
     closure_gate = 1.0 if closure >= 0.75 else 0.5
@@ -949,3 +984,55 @@ def route_heart_recognizability(route, n_sample=100):
     )
 
     return (combined, explanation)
+
+
+def route_heart_recognizability_v2(route, routing_score=None, mode=None,
+                                   n_sample=100):
+    """Manual-aligned secondary heart score.
+
+    Keeps the original HR scorer intact, but adds a second score that better
+    reflects the user's manual ratings by penalising retracing/interior clutter,
+    reducing template bias, and preferring the raw route over the abstracted
+    outline.
+    """
+    sampled = sample_polyline(route, n_sample)
+    if not sampled or len(sampled) < 10:
+        return (0.0, "Too few points (<10)")
+
+    raw_score, _raw_explain = heart_recognizability_score(sampled, is_gps=True)
+    abs_score, _abs_explain, _ = abstract_heart_score(sampled, is_gps=True)
+
+    components = _heart_component_scores(sampled, is_gps=True)
+    retrace = _route_retrace_metrics(route)
+    indent_pref = max(0.0, 1.0 - abs(components['indent'] - 0.45) / 0.45)
+    route_penalty = 0.012 * max(float(routing_score or 0.0), 0.0)
+    fit_bonus = 0.7 if mode == 'fit' else 0.0
+
+    score = (
+        0.35 * raw_score +
+        0.10 * abs_score +
+        2.8 * components['symmetry'] +
+        1.6 * components['lobes'] +
+        1.1 * components['cusp'] +
+        0.8 * indent_pref -
+        2.5 * components['deviation'] -
+        1.2 * components['smoothness'] -
+        6.0 * retrace['seg_repeat'] -
+        2.5 * retrace['pt_repeat'] -
+        route_penalty +
+        fit_bonus
+    )
+    score = round(min(10.0, max(1.0, score)), 1)
+
+    explanation = (
+        f"raw={raw_score:.1f} abstract={abs_score:.1f} "
+        f"manual_v2={score:.1f}/10 | sym={components['symmetry']:.2f} "
+        f"lobes={components['lobes']:.2f} cusp={components['cusp']:.2f} "
+        f"indent_pref={indent_pref:.2f} dev={components['deviation']:.2f} "
+        f"smooth={components['smoothness']:.2f} "
+        f"seg_repeat={retrace['seg_repeat']:.2f} "
+        f"pt_repeat={retrace['pt_repeat']:.2f} "
+        f"route_pen={route_penalty:.2f} fit_bonus={fit_bonus:.2f}"
+    )
+
+    return (score, explanation)

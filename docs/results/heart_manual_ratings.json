@@ -1,5 +1,5 @@
 {
-  "exported": "2026-03-15T14:25:12.072Z",
+  "exported": "2026-03-15T14:31:49.129Z",
   "ratings": {
     "v85_wide_2km": 1,
     "v82_baseline_fit": 8,
@@ -59,7 +59,12 @@
     "v5.1_optimize": 1,
     "v8.1_abstract_optimize": 1,
     "v5.1_fit": 6,
-    "v8.1_abstract_fit": 1
+    "v8.1_abstract_fit": 1,
+    "v8.1_fit": 3,
+    "v8.0_fit": 2,
+    "v8.1_optimize": 1,
+    "v8.0_optimize": 2,
+    "v7.0_optimize": 1
   },
   "summary": [
     {
@@ -227,7 +232,19 @@
       "rating": 3
     },
     {
+      "id": "v8.1_fit",
+      "rating": 3
+    },
+    {
       "id": "v6.0_optimize",
+      "rating": 2
+    },
+    {
+      "id": "v8.0_fit",
+      "rating": 2
+    },
+    {
+      "id": "v8.0_optimize",
       "rating": 2
     },
     {
@@ -296,6 +313,14 @@
     },
     {
       "id": "v8.1_abstract_fit",
+      "rating": 1
+    },
+    {
+      "id": "v8.1_optimize",
+      "rating": 1
+    },
+    {
+      "id": "v7.0_optimize",
       "rating": 1
     }
   ]

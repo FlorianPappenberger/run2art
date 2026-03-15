@@ -67,10 +67,16 @@ _graph_mem_cache = {}
 _MEM_CACHE_MAX = 8
 
 
-def _graph_cache_key(center, dist):
+OPEN_SPACE_FILTER = (
+    '["highway"~"footway|path|pedestrian|cycleway|track|bridleway|steps|living_street|'
+    'residential|service|unclassified|tertiary|tertiary_link"]'
+)
+
+
+def _graph_cache_key(center, dist, graph_mode='walk'):
     lat_r = round(center[0], 3)
     lng_r = round(center[1], 3)
-    raw = f"{lat_r:.3f},{lng_r:.3f},{dist}"
+    raw = f"{lat_r:.3f},{lng_r:.3f},{dist},{graph_mode}"
     return hashlib.md5(raw.encode()).hexdigest()[:12]
 
 
@@ -109,26 +115,47 @@ def _mem_store(key, G):
         del _graph_mem_cache[oldest]
 
 
-def fetch_graph(center, dist=2500):
-    """Fetch osmnx walk-network graph with caching, or None."""
+def fetch_graph(center, dist=2500, graph_mode='walk'):
+    """Fetch an osmnx graph with caching, or None.
+
+    graph_mode:
+      walk       → default OSMnx walking network
+      open_space → expanded pedestrian/open-space network for GPS art
+    """
     if not HAS_OSMNX:
         return None
-    key = _graph_cache_key(center, dist)
+    key = _graph_cache_key(center, dist, graph_mode=graph_mode)
     cached = _cache_get(key)
     if cached is not None:
         return cached
     try:
         t0 = time.time()
-        G = ox.graph_from_point((center[0], center[1]), dist=dist,
-                                network_type='walk')
+        if graph_mode == 'open_space':
+            G = ox.graph_from_point(
+                (center[0], center[1]),
+                dist=dist,
+                network_type='all_public',
+                custom_filter=OPEN_SPACE_FILTER,
+                retain_all=True,
+                simplify=True,
+            )
+        else:
+            G = ox.graph_from_point((center[0], center[1]), dist=dist,
+                                    network_type='walk')
         if G.number_of_edges() < 10:
+            if graph_mode == 'open_space':
+                log("[fetch_graph] open_space graph too small, falling back to walk")
+                return fetch_graph(center, dist=dist, graph_mode='walk')
             return None
         elapsed = time.time() - t0
-        log(f"[fetch_graph] Downloaded in {elapsed:.1f}s — "
+        log(f"[fetch_graph] mode={graph_mode} downloaded in {elapsed:.1f}s — "
             f"{G.number_of_nodes()} nodes, {G.number_of_edges()} edges")
         _cache_put(key, G)
         return G
     except Exception as e:
+        if graph_mode == 'open_space':
+            log(f"[fetch_graph] open_space failed ({e}), falling back to walk")
+            return fetch_graph(center, dist=dist, graph_mode='walk')
         log(f"[fetch_graph] Error: {e}")
         return None
 

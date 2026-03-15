@@ -19,6 +19,9 @@ import time
 import argparse
 import csv
 
+from v86_open_experiments import get_heart_blueprint, genetic_parameter_search
+from v87_llm_planner import run_llm_planned_test
+
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 # ── Constants ──
@@ -192,6 +195,40 @@ DEFAULT_TESTS = [
 
     # ── Wide search: full features ──
     {"id": "v85_wide_full", "mode": "optimize", "flags": {"wide_search": True, "use_road_hierarchy": True, "use_skeleton_score": True, "skeleton_weight": 0.2, "use_ph_topology": True, "ph_weight": 0.2, "indent_enforce": True, "symmetry_weight": 0.5, "indent_weight": 0.5, "v84_blend": 0.3}, "label": "v8.5 Wide Full"},
+
+    # ═══════════════════════════════════════════════════════════════════
+    #  v8.6 OPEN-SPACE BLUEPRINT / GA SEARCH
+    # ═══════════════════════════════════════════════════════════════════
+    {"id": "v86_open_valentine_fit", "mode": "fit", "flags": {"graph_mode": "open_space", "graph_dist": 4500, "shape_kind": "valentine", "indent_enforce": True, "symmetry_weight": 0.7, "indent_weight": 0.6, "force_close": True, "dynamic_densify": True, "use_road_hierarchy": True}, "label": "v8.6 Open Valentine Fit"},
+    {"id": "v86_open_cardioid_opt", "mode": "optimize", "flags": {"graph_mode": "open_space", "graph_dist": 4500, "shape_kind": "cardioid", "indent_enforce": True, "symmetry_weight": 0.7, "indent_weight": 0.6, "force_close": True, "dynamic_densify": True, "use_road_hierarchy": True, "penalty_factor": 2.0}, "label": "v8.6 Open Cardioid Opt"},
+    {"id": "v86_open_lowpoly_fit", "mode": "fit", "flags": {"graph_mode": "open_space", "graph_dist": 4200, "shape_kind": "lowpoly", "indent_enforce": True, "symmetry_weight": 0.6, "indent_weight": 0.6, "force_close": True, "use_road_hierarchy": True}, "label": "v8.6 Open Lowpoly Fit"},
+    {"id": "v86_open_handdrawn_wide", "mode": "optimize", "flags": {"graph_mode": "open_space", "graph_dist": 5000, "shape_kind": "handdrawn_contour", "wide_search": True, "wide_km_range": 3.0, "wide_offset_steps": 4, "indent_enforce": True, "symmetry_weight": 0.7, "indent_weight": 0.6, "use_road_hierarchy": True, "penalty_factor": 2.0}, "label": "v8.6 Open Handdrawn Wide"},
+    {"id": "v86_open_png_ga", "mode": "optimize", "flags": {"graph_mode": "open_space", "graph_dist": 5000, "shape_kind": "simple_png_contour", "ga_search": True, "ga_generations": 4, "ga_population": 10, "ga_scale_min": 0.010, "ga_scale_max": 0.028, "ga_km_range": 1.7, "indent_enforce": True, "symmetry_weight": 0.7, "indent_weight": 0.6, "force_close": True, "dynamic_densify": True, "use_road_hierarchy": True, "penalty_factor": 2.0}, "label": "v8.6 Open PNG GA"},
+    {"id": "v86_open_taubin_ga", "mode": "optimize", "flags": {"graph_mode": "open_space", "graph_dist": 5000, "shape_kind": "taubin_like", "ga_search": True, "ga_generations": 5, "ga_population": 12, "ga_scale_min": 0.011, "ga_scale_max": 0.030, "ga_km_range": 2.0, "indent_enforce": True, "symmetry_weight": 0.8, "indent_weight": 0.7, "force_close": True, "dynamic_densify": True, "use_road_hierarchy": True, "penalty_factor": 2.5}, "label": "v8.6 Open Taubin GA"},
+
+    # ═══════════════════════════════════════════════════════════════════
+    #  v8.7 AI-DRIVEN ROUTE PLANNING (Ollama LLM)
+    # ═══════════════════════════════════════════════════════════════════
+    # Both variants share one LLM API call (result is cached in v87_llm_planner).
+    # Set llm_model to whichever model you have pulled in Ollama, e.g. "llama3",
+    # "mistral", "gemma3", "phi4", etc.  The ollama_url defaults to localhost.
+    {"id": "v87_llm_primary", "mode": "optimize",
+     "flags": {
+         "llm_plan": True, "llm_variant": "primary",
+         "llm_model": "qwen3-coder-next:latest", "llm_length_km": 6.5, "llm_scale": 0.018,
+         "llm_timeout": 360,
+         "graph_mode": "open_space", "graph_dist": 5000,
+     },
+     "label": "v8.7 LLM Primary (Qwen3-Coder 80B)"},
+
+    {"id": "v87_llm_alt", "mode": "optimize",
+     "flags": {
+         "llm_plan": True, "llm_variant": "alternative",
+         "llm_model": "qwen3-coder-next:latest", "llm_length_km": 6.5, "llm_scale": 0.018,
+         "llm_timeout": 360,
+         "graph_mode": "open_space", "graph_dist": 5000,
+     },
+     "label": "v8.7 LLM Alternative (Qwen3-Coder 80B)"},
 ]
 
 
@@ -206,10 +243,14 @@ def run_single_test(test_config, G, kd):
     mode = test_config["mode"]
     flags = test_config.get("flags", {})
     label = test_config.get("label", test_id)
+    shape_kind = flags.get("shape_kind")
+    heart_pts = get_heart_blueprint(shape_kind, n=96) if shape_kind else HEART_PTS
 
     log(f"\n{'─'*60}")
     log(f"[{test_id}] {label}")
     log(f"  Mode: {mode}  Flags: {flags}")
+    if shape_kind:
+        log(f"  Shape blueprint: {shape_kind} ({len(heart_pts)} pts)")
     log(f"{'─'*60}")
 
     t0 = time.time()
@@ -218,7 +259,7 @@ def run_single_test(test_config, G, kd):
     if mode in ("abstract_fit", "abstract_optimize"):
         payload = {
             "mode": mode,
-            "shapes": [{"name": "Heart", "pts": HEART_PTS}],
+            "shapes": [{"name": "Heart", "pts": heart_pts}],
             "shape_index": 0,
             "center_point": CENTER,
         }
@@ -253,7 +294,7 @@ def run_single_test(test_config, G, kd):
     if use_wide:
         from v85_wide_search import wide_search_pipeline
         best_score, best_route, best_params = wide_search_pipeline(
-            G, HEART_PTS, CENTER, kdtree_data=kd, config=flags)
+            G, heart_pts, CENTER, kdtree_data=kd, config=flags)
         elapsed = time.time() - t0
 
         # Compute route length
@@ -266,9 +307,15 @@ def run_single_test(test_config, G, kd):
 
         # Human recognizability score
         hr_score, hr_explain = None, None
+        hr2_score, hr2_explain = None, None
         if best_route and len(best_route) >= 10:
-            from v85_wide_search import route_heart_recognizability
+            from v85_wide_search import (
+                route_heart_recognizability,
+                route_heart_recognizability_v2,
+            )
             hr_score, hr_explain = route_heart_recognizability(best_route)
+            hr2_score, hr2_explain = route_heart_recognizability_v2(
+                best_route, routing_score=best_score, mode=mode)
 
         return {
             "id": test_id, "label": label, "mode": mode, "flags": flags,
@@ -282,7 +329,54 @@ def run_single_test(test_config, G, kd):
             "time_seconds": round(elapsed, 1),
             "heart_recognizability": hr_score,
             "hr_explanation": hr_explain,
+            "heart_recognizability_v2": hr2_score,
+            "hr2_explanation": hr2_explain,
             "error": None if best_route else "No route found",
+        }
+
+    # ── v8.7 LLM-driven route planning ──
+    use_llm = flags.get('llm_plan', False)
+    if use_llm:
+        best_score, best_route, best_params = run_llm_planned_test(
+            G, kd, CENTER, config=flags)
+        elapsed = time.time() - t0
+
+        length_m = 0
+        if best_route and len(best_route) >= 2:
+            from geometry import haversine
+            for i in range(len(best_route) - 1):
+                length_m += haversine(best_route[i][0], best_route[i][1],
+                                      best_route[i+1][0], best_route[i+1][1])
+
+        hr_score, hr_explain = None, None
+        hr2_score, hr2_explain = None, None
+        if best_route and len(best_route) >= 10:
+            from v85_wide_search import (
+                route_heart_recognizability,
+                route_heart_recognizability_v2,
+            )
+            hr_score, hr_explain = route_heart_recognizability(best_route)
+            hr2_score, hr2_explain = route_heart_recognizability_v2(
+                best_route, routing_score=best_score, mode=mode)
+
+        return {
+            "id": test_id, "label": label, "mode": mode, "flags": flags,
+            "score": round(best_score, 1) if best_score < 1e8 else None,
+            "route": best_route or [],
+            "rotation": best_params.get("rotation"),
+            "scale": best_params.get("scale"),
+            "center": best_params.get("center", CENTER),
+            "route_length_m": round(length_m),
+            "route_points": len(best_route) if best_route else 0,
+            "time_seconds": round(elapsed, 1),
+            "heart_recognizability": hr_score,
+            "hr_explanation": hr_explain,
+            "heart_recognizability_v2": hr2_score,
+            "hr2_explanation": hr2_explain,
+            "llm_description": best_params.get("llm_description"),
+            "llm_hr_score": best_params.get("llm_hr_score"),
+            "llm_improvements": best_params.get("llm_improvements"),
+            "error": None if best_route else "No route from LLM waypoints",
         }
 
     V83_V84_BOOL_FLAGS = [
@@ -301,12 +395,13 @@ def run_single_test(test_config, G, kd):
         or flags.get('ph_weight', 0) > 0
 
     use_hybrid = flags.get('hybrid_v6', False)
+    use_ga = flags.get('ga_search', False)
 
     # For pure v8.2 baselines (no v8.3 flags), delegate to engine HANDLERS directly
     if not has_v83_flags and not use_hybrid:
         payload = {
             "mode": mode,
-            "shapes": [{"name": "Heart", "pts": HEART_PTS}],
+            "shapes": [{"name": "Heart", "pts": heart_pts}],
             "shape_index": 0,
             "center_point": CENTER,
         }
@@ -315,9 +410,15 @@ def run_single_test(test_config, G, kd):
             elapsed = time.time() - t0
             rt = result.get("route", [])
             hr_score, hr_explain = None, None
+            hr2_score, hr2_explain = None, None
             if rt and len(rt) >= 10:
-                from v85_wide_search import route_heart_recognizability
+                from v85_wide_search import (
+                    route_heart_recognizability,
+                    route_heart_recognizability_v2,
+                )
                 hr_score, hr_explain = route_heart_recognizability(rt)
+                hr2_score, hr2_explain = route_heart_recognizability_v2(
+                    rt, routing_score=result.get("score"), mode=mode)
             return {
                 "id": test_id, "label": label, "mode": mode, "flags": flags,
                 "score": result.get("score"),
@@ -330,6 +431,8 @@ def run_single_test(test_config, G, kd):
                 "time_seconds": round(elapsed, 1),
                 "heart_recognizability": hr_score,
                 "hr_explanation": hr_explain,
+                "heart_recognizability_v2": hr2_score,
+                "hr2_explanation": hr2_explain,
                 "error": result.get("error"),
             }
 
@@ -342,35 +445,40 @@ def run_single_test(test_config, G, kd):
         scales = [0.010, 0.015, 0.020, 0.028]
         offsets = make_offsets(km_range=1.0, steps=2)
 
-        if use_hybrid:
-            coarse = hybrid_v6_coarse_search(G, HEART_PTS, CENTER, kdtree_data=kd,
+        if use_ga:
+            best_score, best_route, best_params = genetic_parameter_search(
+                G, heart_pts, CENTER, kdtree_data=kd, config=flags, mode=mode)
+            kept = []
+        elif use_hybrid:
+            coarse = hybrid_v6_coarse_search(G, heart_pts, CENTER, kdtree_data=kd,
                                              penalty_factor=flags.get('penalty_factor', 1.5))
         else:
-            coarse = coarse_grid_search(G, HEART_PTS, CENTER, rotations, scales,
+            coarse = coarse_grid_search(G, heart_pts, CENTER, rotations, scales,
                                         offsets, densify_spacing=150, kdtree_data=kd)
 
         # Top-3 candidates, reduced variation grid
-        seen, kept = set(), []
-        for _, rot, sc, c in coarse:
-            key = (round(rot, 0), round(sc, 4), round(c[0], 4), round(c[1], 4))
-            if key not in seen:
-                seen.add(key)
-                kept.append((rot, sc, c))
-            if len(kept) >= 3:
-                break
+        if not use_ga:
+            seen, kept = set(), []
+            for _, rot, sc, c in coarse:
+                key = (round(rot, 0), round(sc, 4), round(c[0], 4), round(c[1], 4))
+                if key not in seen:
+                    seen.add(key)
+                    kept.append((rot, sc, c))
+                if len(kept) >= 3:
+                    break
 
-        best_score, best_route, best_params = 1e9, None, {}
-        for rot, sc, c in kept:
-            for dr in [0, -15, 15]:
-                for sf in [1.0, 0.90, 1.10]:
-                    r2, s2 = rot + dr, sc * sf
-                    score, route = fit_and_score_v83(
-                        G, HEART_PTS, r2, s2, c,
-                        config=flags, kdtree_data=kd)
-                    if route and score < best_score:
-                        best_score = score
-                        best_route = route
-                        best_params = {"rotation": r2, "scale": s2, "center": c}
+            best_score, best_route, best_params = 1e9, None, {}
+            for rot, sc, c in kept:
+                for dr in [0, -15, 15]:
+                    for sf in [1.0, 0.90, 1.10]:
+                        r2, s2 = rot + dr, sc * sf
+                        score, route = fit_and_score_v83(
+                            G, heart_pts, r2, s2, c,
+                            config=flags, kdtree_data=kd)
+                        if route and score < best_score:
+                            best_score = score
+                            best_route = route
+                            best_params = {"rotation": r2, "scale": s2, "center": c}
 
     elif mode == "optimize":
         # OPTIMIZE MODE: broader coarse + top-5 fine
@@ -378,37 +486,42 @@ def run_single_test(test_config, G, kd):
         scales = [0.010, 0.014, 0.018, 0.022, 0.027, 0.033, 0.040]
         offsets = make_offsets(km_range=2.0, steps=3)
 
-        if use_hybrid:
-            coarse = hybrid_v6_coarse_search(G, HEART_PTS, CENTER, kdtree_data=kd,
+        if use_ga:
+            best_score, best_route, best_params = genetic_parameter_search(
+                G, heart_pts, CENTER, kdtree_data=kd, config=flags, mode=mode)
+            kept = []
+        elif use_hybrid:
+            coarse = hybrid_v6_coarse_search(G, heart_pts, CENTER, kdtree_data=kd,
                                              penalty_factor=flags.get('penalty_factor', 1.5))
         else:
-            coarse = coarse_grid_search(G, HEART_PTS, CENTER, rotations, scales,
+            coarse = coarse_grid_search(G, heart_pts, CENTER, rotations, scales,
                                         offsets, densify_spacing=200, kdtree_data=kd)
 
-        cusp_aligned = _cusp_align_candidates(HEART_PTS, coarse[:20], kd)
-        merged = coarse[:50] + cusp_aligned
+        if not use_ga:
+            cusp_aligned = _cusp_align_candidates(heart_pts, coarse[:20], kd)
+            merged = coarse[:50] + cusp_aligned
 
-        seen, kept = set(), []
-        for _, rot, sc, c in merged:
-            key = (round(rot, 0), round(sc, 4), round(c[0], 4), round(c[1], 4))
-            if key not in seen:
-                seen.add(key)
-                kept.append((rot, sc, c))
-            if len(kept) >= 5:
-                break
+            seen, kept = set(), []
+            for _, rot, sc, c in merged:
+                key = (round(rot, 0), round(sc, 4), round(c[0], 4), round(c[1], 4))
+                if key not in seen:
+                    seen.add(key)
+                    kept.append((rot, sc, c))
+                if len(kept) >= 5:
+                    break
 
-        best_score, best_route, best_params = 1e9, None, {}
-        for rot, sc, c in kept:
-            for dr in [0, -7, 7, -15, 15]:
-                for sf in [1.0, 0.88, 1.12]:
-                    r2, s2 = rot + dr, sc * sf
-                    score, route = fit_and_score_v83(
-                        G, HEART_PTS, r2, s2, c,
-                        config=flags, kdtree_data=kd)
-                    if route and score < best_score:
-                        best_score = score
-                        best_route = route
-                        best_params = {"rotation": r2, "scale": s2, "center": c}
+            best_score, best_route, best_params = 1e9, None, {}
+            for rot, sc, c in kept:
+                for dr in [0, -7, 7, -15, 15]:
+                    for sf in [1.0, 0.88, 1.12]:
+                        r2, s2 = rot + dr, sc * sf
+                        score, route = fit_and_score_v83(
+                            G, heart_pts, r2, s2, c,
+                            config=flags, kdtree_data=kd)
+                        if route and score < best_score:
+                            best_score = score
+                            best_route = route
+                            best_params = {"rotation": r2, "scale": s2, "center": c}
 
     else:
         return {
@@ -429,9 +542,15 @@ def run_single_test(test_config, G, kd):
 
     # Human recognizability score
     hr_score, hr_explain = None, None
+    hr2_score, hr2_explain = None, None
     if best_route and len(best_route) >= 10:
-        from v85_wide_search import route_heart_recognizability
+        from v85_wide_search import (
+            route_heart_recognizability,
+            route_heart_recognizability_v2,
+        )
         hr_score, hr_explain = route_heart_recognizability(best_route)
+        hr2_score, hr2_explain = route_heart_recognizability_v2(
+            best_route, routing_score=best_score, mode=mode)
 
     return {
         "id": test_id,
@@ -448,6 +567,8 @@ def run_single_test(test_config, G, kd):
         "time_seconds": round(elapsed, 1),
         "heart_recognizability": hr_score,
         "hr_explanation": hr_explain,
+        "heart_recognizability_v2": hr2_score,
+        "hr2_explanation": hr2_explain,
         "error": None if best_route else "No route found",
     }
 
@@ -680,15 +801,47 @@ def main():
             log(f"[ERROR] Test '{args.test}' not found")
             return
 
-    # Fetch graph once (shared across all tests)
-    log("Loading road network graph...")
+    # Fetch graphs lazily per graph mode / distance combination
+    log("Preparing road network graphs...")
     from routing import fetch_graph, build_kdtree
-    G = fetch_graph(CENTER, dist=4000)
-    if G is None:
-        log("[ERROR] Could not fetch graph. Aborting.")
-        return
-    kd = build_kdtree(G)
-    log(f"Graph loaded: {G.number_of_nodes()} nodes, {G.number_of_edges()} edges")
+    graph_cache = {}
+
+    # ── Pre-fetch LLM routes in background thread ──
+    # The LLM API call is network-bound (30–120s) and independent of graph
+    # loading or prior test results.  Launching it early lets it overlap with
+    # graph fetching and the first non-LLM tests, saving wall-clock time.
+    llm_tests = [t for t in tests if t.get("flags", {}).get("llm_plan")
+                 and t["id"] not in completed]
+    if llm_tests:
+        from concurrent.futures import ThreadPoolExecutor
+        from v87_llm_planner import llm_plan_heart_route
+        _llm_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="llm")
+        _first_llm = llm_tests[0]["flags"]
+        log("[parallel] Pre-fetching LLM route plan in background thread ...")
+        _llm_future = _llm_executor.submit(
+            llm_plan_heart_route,
+            center=CENTER,
+            length_km=_first_llm.get("llm_length_km", 6.5),
+            scale=_first_llm.get("llm_scale", 0.018),
+            model=_first_llm.get("llm_model", "qwen3-coder-next:latest"),
+            timeout=_first_llm.get("llm_timeout", 360),
+        )
+    else:
+        _llm_future = None
+
+    def get_graph_bundle(test):
+        flags = test.get("flags", {})
+        graph_mode = flags.get("graph_mode", "walk")
+        graph_dist = int(flags.get("graph_dist", 4000))
+        key = (graph_mode, graph_dist)
+        if key not in graph_cache:
+            log(f"Loading graph mode={graph_mode} dist={graph_dist}...")
+            graph = fetch_graph(CENTER, dist=graph_dist, graph_mode=graph_mode)
+            if graph is None:
+                return None, None
+            graph_cache[key] = (graph, build_kdtree(graph))
+            log(f"Graph loaded: {graph.number_of_nodes()} nodes, {graph.number_of_edges()} edges")
+        return graph_cache[key]
 
     # Run tests
     results = []
@@ -706,6 +859,12 @@ def main():
         log(f"{'═'*60}")
 
         try:
+            G, kd = get_graph_bundle(test)
+            if G is None:
+                raise RuntimeError("Could not fetch graph for test")
+            # If this is an LLM test and the pre-fetch is done, log it
+            if _llm_future and test.get("flags", {}).get("llm_plan") and _llm_future.done():
+                log("[parallel] LLM pre-fetch already completed — cache hit expected")
             result = run_single_test(test, G, kd)
         except Exception as e:
             log(f"[ERROR] Test {tid} crashed: {e}")
