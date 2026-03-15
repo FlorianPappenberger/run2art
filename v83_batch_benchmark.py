@@ -23,10 +23,31 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 # ── Constants ──
 CENTER = [51.4543, -0.9781]
+# v8.3 improved heart: deeper top indent, more control points, parametric curve
 HEART_PTS = [
-    [.50, .14], [.66, -.04], [.90, -.06], [1.0, .18], [.94, .46],
-    [.76, .70], [.50, 1.0], [.24, .70], [.06, .46], [0, .18],
-    [.10, -.06], [.34, -.04], [.50, .14]
+    [0.500, 0.350],   # top center indent (deep V)
+    [0.562, 0.126],   # right lobe inner slope
+    [0.677, 0.053],   # right lobe rising
+    [0.825, 0.056],   # right lobe
+    [0.951, 0.147],   # right lobe peak
+    [1.000, 0.291],   # right descending
+    [0.951, 0.445],   # right upper side
+    [0.825, 0.588],   # right mid
+    [0.677, 0.716],   # right lower
+    [0.562, 0.830],   # approaching cusp right
+    [0.509, 0.915],   # near cusp right
+    [0.500, 0.947],   # bottom cusp
+    [0.491, 0.915],   # near cusp left
+    [0.438, 0.830],   # leaving cusp left
+    [0.323, 0.716],   # left lower
+    [0.175, 0.588],   # left mid
+    [0.049, 0.445],   # left upper side
+    [0.000, 0.291],   # left descending
+    [0.049, 0.147],   # left lobe peak
+    [0.175, 0.056],   # left lobe
+    [0.323, 0.053],   # left lobe rising
+    [0.437, 0.126],   # left lobe inner slope
+    [0.500, 0.350],   # close
 ]
 RESULTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "docs", "results")
 RESULTS_FILE = os.path.join(RESULTS_DIR, "v83_batch_results.json")
@@ -35,7 +56,10 @@ COMPARISON_HTML = os.path.join(RESULTS_DIR, "v83_comparison.html")
 
 
 def log(msg):
-    print(msg, flush=True)
+    try:
+        print(msg, flush=True)
+    except UnicodeEncodeError:
+        print(msg.encode("ascii", "replace").decode("ascii"), flush=True)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -43,58 +67,131 @@ def log(msg):
 # ═══════════════════════════════════════════════════════════════════════════
 
 DEFAULT_TESTS = [
-    # ── Baseline v8.2 ──
+    # ── Baseline: new shape, no enhancements ──
     {"id": "v82_baseline_fit", "mode": "fit", "flags": {}, "label": "v8.2 Baseline Fit"},
-    {"id": "v82_baseline_opt", "mode": "optimize", "flags": {}, "label": "v8.2 Baseline Optimize"},
+    {"id": "v82_baseline_opt", "mode": "optimize", "flags": {}, "label": "v8.2 Baseline Opt"},
 
-    # ── Dynamic densification ──
-    {"id": "dynamic_fit", "mode": "fit", "flags": {"dynamic_densify": True}, "label": "Dynamic Densify Fit"},
-    {"id": "dynamic_opt", "mode": "optimize", "flags": {"dynamic_densify": True}, "label": "Dynamic Densify Opt"},
+    # ── Indent enforcement (core fix) ──
+    {"id": "indent_fit", "mode": "fit", "flags": {"indent_enforce": True}, "label": "Indent Enforce Fit"},
+    {"id": "indent_opt", "mode": "optimize", "flags": {"indent_enforce": True}, "label": "Indent Enforce Opt"},
 
-    # ── Spline smoothing ──
-    {"id": "spline3_fit", "mode": "fit", "flags": {"spline_k": 3}, "label": "Spline k=3 Fit"},
-    {"id": "spline4_fit", "mode": "fit", "flags": {"spline_k": 4}, "label": "Spline k=4 Fit"},
-    {"id": "spline5_fit", "mode": "fit", "flags": {"spline_k": 5}, "label": "Spline k=5 Fit"},
+    # ── Indent + symmetry (user's preferred combo) ──
+    {"id": "indent_sym05_fit", "mode": "fit", "flags": {"indent_enforce": True, "symmetry_weight": 0.5, "indent_weight": 0.5}, "label": "Indent+Sym0.5 Fit"},
+    {"id": "indent_sym05_opt", "mode": "optimize", "flags": {"indent_enforce": True, "symmetry_weight": 0.5, "indent_weight": 0.5}, "label": "Indent+Sym0.5 Opt"},
 
-    # ── Multi-resolution ──
-    {"id": "multires_fit", "mode": "fit", "flags": {"multi_res": True}, "label": "Multi-Res Fit"},
-    {"id": "multires_opt", "mode": "optimize", "flags": {"multi_res": True}, "label": "Multi-Res Opt"},
+    # ── Indent + symmetry + close ──
+    {"id": "indent_sym05_close_fit", "mode": "fit", "flags": {"indent_enforce": True, "symmetry_weight": 0.5, "indent_weight": 0.5, "force_close": True}, "label": "Indent+Sym0.5+Close Fit"},
+    {"id": "indent_sym05_close_opt", "mode": "optimize", "flags": {"indent_enforce": True, "symmetry_weight": 0.5, "indent_weight": 0.5, "force_close": True}, "label": "Indent+Sym0.5+Close Opt"},
 
-    # ── Symmetry penalty ──
-    {"id": "sym02_opt", "mode": "optimize", "flags": {"symmetry_weight": 0.2}, "label": "Symmetry 0.2 Opt"},
-    {"id": "sym03_opt", "mode": "optimize", "flags": {"symmetry_weight": 0.3}, "label": "Symmetry 0.3 Opt"},
-    {"id": "sym04_opt", "mode": "optimize", "flags": {"symmetry_weight": 0.4}, "label": "Symmetry 0.4 Opt"},
-    {"id": "sym05_opt", "mode": "optimize", "flags": {"symmetry_weight": 0.5}, "label": "Symmetry 0.5 Opt"},
+    # ── Indent + symmetry + penalty variations ──
+    {"id": "indent_sym05_pen15", "mode": "optimize", "flags": {"indent_enforce": True, "symmetry_weight": 0.5, "indent_weight": 0.5, "penalty_factor": 1.5}, "label": "Indent+Sym+Pen1.5"},
+    {"id": "indent_sym05_pen20", "mode": "optimize", "flags": {"indent_enforce": True, "symmetry_weight": 0.5, "indent_weight": 0.5, "penalty_factor": 2.0}, "label": "Indent+Sym+Pen2.0"},
+    {"id": "indent_sym05_pen30", "mode": "optimize", "flags": {"indent_enforce": True, "symmetry_weight": 0.5, "indent_weight": 0.5, "penalty_factor": 3.0}, "label": "Indent+Sym+Pen3.0"},
 
-    # ── Force closure ──
-    {"id": "close_fit", "mode": "fit", "flags": {"force_close": True}, "label": "Force Close Fit"},
-    {"id": "close_opt", "mode": "optimize", "flags": {"force_close": True}, "label": "Force Close Opt"},
+    # ── Indent + symmetry + dynamic densify ──
+    {"id": "indent_sym05_dyn", "mode": "optimize", "flags": {"indent_enforce": True, "symmetry_weight": 0.5, "indent_weight": 0.5, "dynamic_densify": True}, "label": "Indent+Sym+Dynamic"},
+    {"id": "indent_sym05_dyn_close", "mode": "optimize", "flags": {"indent_enforce": True, "symmetry_weight": 0.5, "indent_weight": 0.5, "dynamic_densify": True, "force_close": True}, "label": "Indent+Sym+Dyn+Close"},
 
-    # ── Penalty factor variations ──
-    {"id": "pen15_opt", "mode": "optimize", "flags": {"penalty_factor": 1.5}, "label": "Penalty 1.5x Opt"},
-    {"id": "pen20_opt", "mode": "optimize", "flags": {"penalty_factor": 2.0}, "label": "Penalty 2.0x Opt"},
-    {"id": "pen25_opt", "mode": "optimize", "flags": {"penalty_factor": 2.5}, "label": "Penalty 2.5x Opt"},
-    {"id": "pen30_opt", "mode": "optimize", "flags": {"penalty_factor": 3.0}, "label": "Penalty 3.0x Opt"},
-    {"id": "pen40_opt", "mode": "optimize", "flags": {"penalty_factor": 4.0}, "label": "Penalty 4.0x Opt"},
+    # ── Indent + symmetry + spline ──
+    {"id": "indent_sym05_spline3", "mode": "fit", "flags": {"indent_enforce": True, "symmetry_weight": 0.5, "indent_weight": 0.5, "spline_k": 3}, "label": "Indent+Sym+Spline3"},
 
-    # ── Hybrid v6+v8 ──
-    {"id": "hybrid_fit", "mode": "fit", "flags": {"hybrid_v6": True}, "label": "Hybrid v6 Fit"},
-    {"id": "hybrid_opt", "mode": "optimize", "flags": {"hybrid_v6": True}, "label": "Hybrid v6 Opt"},
+    # ── Indent-only variations (no symmetry) ──
+    {"id": "indent_pen20_opt", "mode": "optimize", "flags": {"indent_enforce": True, "indent_weight": 0.8, "penalty_factor": 2.0}, "label": "Indent+Pen2.0 Opt"},
+    {"id": "indent_close_opt", "mode": "optimize", "flags": {"indent_enforce": True, "indent_weight": 0.8, "force_close": True}, "label": "Indent+Close Opt"},
 
-    # ── v6 proximity blended scoring ──
-    {"id": "v6prox02_opt", "mode": "optimize", "flags": {"v6_proximity_weight": 0.2}, "label": "v6 Prox 0.2 Opt"},
+    # ── Best combos from v8.3 round 1 (now with new shape) ──
+    {"id": "sym05_opt", "mode": "optimize", "flags": {"symmetry_weight": 0.5}, "label": "Sym0.5 Opt (new shape)"},
+    {"id": "pen30_opt", "mode": "optimize", "flags": {"penalty_factor": 3.0}, "label": "Pen3.0 Opt (new shape)"},
+    {"id": "v6prox02_opt", "mode": "optimize", "flags": {"v6_proximity_weight": 0.2}, "label": "v6 Prox 0.2 (new shape)"},
 
-    # ── Combos ──
-    {"id": "combo_dyn_spline3", "mode": "fit", "flags": {"dynamic_densify": True, "spline_k": 3}, "label": "Dynamic+Spline3 Fit"},
-    {"id": "combo_dyn_close", "mode": "fit", "flags": {"dynamic_densify": True, "force_close": True}, "label": "Dynamic+Close Fit"},
-    {"id": "combo_hybrid_sym03", "mode": "optimize", "flags": {"hybrid_v6": True, "symmetry_weight": 0.3}, "label": "Hybrid+Sym0.3 Opt"},
-    {"id": "combo_multires_spline3", "mode": "fit", "flags": {"multi_res": True, "spline_k": 3}, "label": "MultiRes+Spline3 Fit"},
-    {"id": "combo_pen20_sym03", "mode": "optimize", "flags": {"penalty_factor": 2.0, "symmetry_weight": 0.3}, "label": "Pen2.0+Sym0.3 Opt"},
-    {"id": "combo_dyn_hybrid_close", "mode": "optimize", "flags": {"dynamic_densify": True, "hybrid_v6": True, "force_close": True}, "label": "Dyn+Hybrid+Close Opt"},
-    {"id": "combo_all_fit", "mode": "fit", "flags": {"dynamic_densify": True, "spline_k": 3, "force_close": True, "symmetry_weight": 0.2}, "label": "All Features Fit"},
+    # ── Kitchen sink v8.3: all features ──
+    {"id": "full_heart_fit", "mode": "fit", "flags": {"indent_enforce": True, "symmetry_weight": 0.5, "indent_weight": 0.5, "force_close": True, "dynamic_densify": True, "spline_k": 3}, "label": "Full Heart Fit"},
+    {"id": "full_heart_opt", "mode": "optimize", "flags": {"indent_enforce": True, "symmetry_weight": 0.5, "indent_weight": 0.5, "force_close": True, "dynamic_densify": True}, "label": "Full Heart Opt"},
 
-    # ── Abstract mode ──
-    {"id": "abstract_fit", "mode": "abstract_fit", "flags": {}, "label": "Abstract Fit"},
+    # ═══════════════════════════════════════════════════════════════════
+    #  v8.4 PERCEPTUAL & ROAD-AWARE LAYER
+    # ═══════════════════════════════════════════════════════════════════
+
+    # ── Road-Density Auto-Scaling (alone) ──
+    {"id": "v84_density_fit", "mode": "fit", "flags": {"density_auto_scale": True, "indent_enforce": True, "symmetry_weight": 0.5, "indent_weight": 0.5}, "label": "v8.4 Density+Indent Fit"},
+    {"id": "v84_density_opt", "mode": "optimize", "flags": {"density_auto_scale": True, "indent_enforce": True, "symmetry_weight": 0.5, "indent_weight": 0.5}, "label": "v8.4 Density+Indent Opt"},
+
+    # ── Road-Hierarchy Bonus (alone) ──
+    {"id": "v84_hierarchy_fit", "mode": "fit", "flags": {"use_road_hierarchy": True, "indent_enforce": True, "symmetry_weight": 0.5, "indent_weight": 0.5}, "label": "v8.4 Hierarchy+Indent Fit"},
+    {"id": "v84_hierarchy_opt", "mode": "optimize", "flags": {"use_road_hierarchy": True, "indent_enforce": True, "symmetry_weight": 0.5, "indent_weight": 0.5}, "label": "v8.4 Hierarchy+Indent Opt"},
+
+    # ── Skeleton Score (alone) ──
+    {"id": "v84_skel_fit", "mode": "fit", "flags": {"use_skeleton_score": True, "skeleton_weight": 0.3, "indent_enforce": True, "symmetry_weight": 0.5, "indent_weight": 0.5, "v84_blend": 0.3}, "label": "v8.4 Skeleton Fit"},
+    {"id": "v84_skel_opt", "mode": "optimize", "flags": {"use_skeleton_score": True, "skeleton_weight": 0.3, "indent_enforce": True, "symmetry_weight": 0.5, "indent_weight": 0.5, "v84_blend": 0.3}, "label": "v8.4 Skeleton Opt"},
+
+    # ── Persistent Homology (alone) ──
+    {"id": "v84_ph_fit", "mode": "fit", "flags": {"use_ph_topology": True, "ph_weight": 0.3, "indent_enforce": True, "symmetry_weight": 0.5, "indent_weight": 0.5, "v84_blend": 0.3}, "label": "v8.4 PH Topology Fit"},
+    {"id": "v84_ph_opt", "mode": "optimize", "flags": {"use_ph_topology": True, "ph_weight": 0.3, "indent_enforce": True, "symmetry_weight": 0.5, "indent_weight": 0.5, "v84_blend": 0.3}, "label": "v8.4 PH Topology Opt"},
+
+    # ── FGW Score (alone) ──
+    {"id": "v84_fgw_opt", "mode": "optimize", "flags": {"use_fgw": True, "fgw_weight": 0.3, "indent_enforce": True, "symmetry_weight": 0.5, "indent_weight": 0.5, "v84_blend": 0.3}, "label": "v8.4 FGW Opt"},
+
+    # ── Perceptual Loss (alone) ──
+    {"id": "v84_percep_opt", "mode": "optimize", "flags": {"use_perceptual_loss": True, "perceptual_weight": 0.3, "indent_enforce": True, "symmetry_weight": 0.5, "indent_weight": 0.5, "v84_blend": 0.3}, "label": "v8.4 Perceptual Opt"},
+
+    # ── Combo: Skeleton + Hierarchy ──
+    {"id": "v84_skel_hier_fit", "mode": "fit", "flags": {"use_skeleton_score": True, "skeleton_weight": 0.3, "use_road_hierarchy": True, "indent_enforce": True, "symmetry_weight": 0.5, "indent_weight": 0.5, "v84_blend": 0.3}, "label": "v8.4 Skel+Hier Fit"},
+    {"id": "v84_skel_hier_opt", "mode": "optimize", "flags": {"use_skeleton_score": True, "skeleton_weight": 0.3, "use_road_hierarchy": True, "indent_enforce": True, "symmetry_weight": 0.5, "indent_weight": 0.5, "v84_blend": 0.3}, "label": "v8.4 Skel+Hier Opt"},
+
+    # ── Combo: PH + Skeleton ──
+    {"id": "v84_ph_skel_opt", "mode": "optimize", "flags": {"use_ph_topology": True, "ph_weight": 0.2, "use_skeleton_score": True, "skeleton_weight": 0.2, "indent_enforce": True, "symmetry_weight": 0.5, "indent_weight": 0.5, "v84_blend": 0.3}, "label": "v8.4 PH+Skel Opt"},
+
+    # ── Combo: Density + Hierarchy + Skeleton ──
+    {"id": "v84_dens_hier_skel", "mode": "optimize", "flags": {"density_auto_scale": True, "use_road_hierarchy": True, "use_skeleton_score": True, "skeleton_weight": 0.3, "indent_enforce": True, "symmetry_weight": 0.5, "indent_weight": 0.5, "v84_blend": 0.3}, "label": "v8.4 Dens+Hier+Skel"},
+
+    # ── Combo: Perceptual + PH ──
+    {"id": "v84_percep_ph_opt", "mode": "optimize", "flags": {"use_perceptual_loss": True, "perceptual_weight": 0.2, "use_ph_topology": True, "ph_weight": 0.2, "indent_enforce": True, "symmetry_weight": 0.5, "indent_weight": 0.5, "v84_blend": 0.3}, "label": "v8.4 Percep+PH Opt"},
+
+    # ── Combo: Hierarchy + Dynamic Densify ──
+    {"id": "v84_hier_dyn_opt", "mode": "optimize", "flags": {"use_road_hierarchy": True, "dynamic_densify": True, "indent_enforce": True, "symmetry_weight": 0.5, "indent_weight": 0.5}, "label": "v8.4 Hier+Dynamic Opt"},
+
+    # ── Combo: Skeleton + Spline smoothing ──
+    {"id": "v84_skel_spline_fit", "mode": "fit", "flags": {"use_skeleton_score": True, "skeleton_weight": 0.3, "spline_k": 3, "indent_enforce": True, "symmetry_weight": 0.5, "indent_weight": 0.5, "v84_blend": 0.3}, "label": "v8.4 Skel+Spline Fit"},
+
+    # ── v8.4 blend sweep ──
+    {"id": "v84_skel_b20", "mode": "optimize", "flags": {"use_skeleton_score": True, "skeleton_weight": 0.3, "indent_enforce": True, "symmetry_weight": 0.5, "indent_weight": 0.5, "v84_blend": 0.2}, "label": "v8.4 Skel blend=0.2"},
+    {"id": "v84_skel_b40", "mode": "optimize", "flags": {"use_skeleton_score": True, "skeleton_weight": 0.3, "indent_enforce": True, "symmetry_weight": 0.5, "indent_weight": 0.5, "v84_blend": 0.4}, "label": "v8.4 Skel blend=0.4"},
+
+    # ── Penalty sweep combos with v8.4 ──
+    {"id": "v84_hier_pen20", "mode": "optimize", "flags": {"use_road_hierarchy": True, "penalty_factor": 2.0, "indent_enforce": True, "symmetry_weight": 0.5, "indent_weight": 0.5}, "label": "v8.4 Hier+Pen2.0"},
+    {"id": "v84_hier_pen30", "mode": "optimize", "flags": {"use_road_hierarchy": True, "penalty_factor": 3.0, "indent_enforce": True, "symmetry_weight": 0.5, "indent_weight": 0.5}, "label": "v8.4 Hier+Pen3.0"},
+
+    # ── Full v8.4 kitchen sink ──
+    {"id": "v84_full_fit", "mode": "fit", "flags": {"density_auto_scale": True, "use_road_hierarchy": True, "use_skeleton_score": True, "skeleton_weight": 0.2, "use_ph_topology": True, "ph_weight": 0.2, "indent_enforce": True, "symmetry_weight": 0.5, "indent_weight": 0.5, "force_close": True, "v84_blend": 0.3}, "label": "v8.4 Full Fit"},
+    {"id": "v84_full_opt", "mode": "optimize", "flags": {"density_auto_scale": True, "use_road_hierarchy": True, "use_skeleton_score": True, "skeleton_weight": 0.2, "use_ph_topology": True, "ph_weight": 0.2, "indent_enforce": True, "symmetry_weight": 0.5, "indent_weight": 0.5, "force_close": True, "dynamic_densify": True, "v84_blend": 0.3}, "label": "v8.4 Full Opt"},
+
+    # ═══════════════════════════════════════════════════════════════════
+    #  v8.5 WIDE-AREA MULTI-SCALE SEARCH
+    # ═══════════════════════════════════════════════════════════════════
+
+    # ── Wide search: default 4km range, standard features ──
+    {"id": "v85_wide_default", "mode": "optimize", "flags": {"wide_search": True, "indent_enforce": True, "symmetry_weight": 0.5, "indent_weight": 0.5}, "label": "v8.5 Wide Default"},
+
+    # ── Wide search: with hierarchy bonus ──
+    {"id": "v85_wide_hier", "mode": "optimize", "flags": {"wide_search": True, "use_road_hierarchy": True, "indent_enforce": True, "symmetry_weight": 0.5, "indent_weight": 0.5}, "label": "v8.5 Wide+Hierarchy"},
+
+    # ── Wide search: with penalty 2.0 ──
+    {"id": "v85_wide_pen20", "mode": "optimize", "flags": {"wide_search": True, "penalty_factor": 2.0, "indent_enforce": True, "symmetry_weight": 0.5, "indent_weight": 0.5}, "label": "v8.5 Wide+Pen2.0"},
+
+    # ── Wide search: with hierarchy + penalty 3.0 (best v8.4 combo) ──
+    {"id": "v85_wide_hier_pen30", "mode": "optimize", "flags": {"wide_search": True, "use_road_hierarchy": True, "penalty_factor": 3.0, "indent_enforce": True, "symmetry_weight": 0.5, "indent_weight": 0.5}, "label": "v8.5 Wide+Hier+Pen3.0"},
+
+    # ── Wide search: smaller km range (2km) for faster run ──
+    {"id": "v85_wide_2km", "mode": "optimize", "flags": {"wide_search": True, "wide_km_range": 2.0, "wide_offset_steps": 3, "indent_enforce": True, "symmetry_weight": 0.5, "indent_weight": 0.5}, "label": "v8.5 Wide 2km"},
+
+    # ── Wide search: extended 6km range, more candidates ──
+    {"id": "v85_wide_6km", "mode": "optimize", "flags": {"wide_search": True, "wide_km_range": 6.0, "wide_offset_steps": 5, "wide_n_coarse": 300, "wide_n_refine": 40, "wide_n_fine": 15, "indent_enforce": True, "symmetry_weight": 0.5, "indent_weight": 0.5}, "label": "v8.5 Wide 6km"},
+
+    # ── Wide search: hierarchy + skeleton scoring ──
+    {"id": "v85_wide_hier_skel", "mode": "optimize", "flags": {"wide_search": True, "use_road_hierarchy": True, "use_skeleton_score": True, "skeleton_weight": 0.3, "indent_enforce": True, "symmetry_weight": 0.5, "indent_weight": 0.5, "v84_blend": 0.3}, "label": "v8.5 Wide+Hier+Skel"},
+
+    # ── Wide search: full features ──
+    {"id": "v85_wide_full", "mode": "optimize", "flags": {"wide_search": True, "use_road_hierarchy": True, "use_skeleton_score": True, "skeleton_weight": 0.2, "use_ph_topology": True, "ph_weight": 0.2, "indent_enforce": True, "symmetry_weight": 0.5, "indent_weight": 0.5, "v84_blend": 0.3}, "label": "v8.5 Wide Full"},
 ]
 
 
@@ -150,11 +247,58 @@ def run_single_test(test_config, G, kd):
                 "score": None, "route": [],
             }
 
-    # v8.3 enhanced pipeline or standard v8.2
-    has_v83_flags = any(flags.get(k) for k in [
-        'dynamic_densify', 'spline_k', 'multi_res', 'force_close',
-    ]) or flags.get('symmetry_weight', 0) > 0 or flags.get('penalty_factor', 1.0) != 1.0 \
-       or flags.get('v6_proximity_weight', 0) > 0
+    # v8.3/v8.4 enhanced pipeline or standard v8.2
+    # ── v8.5 wide search mode ──
+    use_wide = flags.get('wide_search', False)
+    if use_wide:
+        from v85_wide_search import wide_search_pipeline
+        best_score, best_route, best_params = wide_search_pipeline(
+            G, HEART_PTS, CENTER, kdtree_data=kd, config=flags)
+        elapsed = time.time() - t0
+
+        # Compute route length
+        length_m = 0
+        if best_route and len(best_route) >= 2:
+            from geometry import haversine
+            for i in range(len(best_route) - 1):
+                length_m += haversine(best_route[i][0], best_route[i][1],
+                                      best_route[i+1][0], best_route[i+1][1])
+
+        # Human recognizability score
+        hr_score, hr_explain = None, None
+        if best_route and len(best_route) >= 10:
+            from v85_wide_search import route_heart_recognizability
+            hr_score, hr_explain = route_heart_recognizability(best_route)
+
+        return {
+            "id": test_id, "label": label, "mode": mode, "flags": flags,
+            "score": round(best_score, 1) if best_score < 1e8 else None,
+            "route": best_route or [],
+            "rotation": best_params.get("rotation"),
+            "scale": best_params.get("scale"),
+            "center": best_params.get("center", CENTER),
+            "route_length_m": round(length_m),
+            "route_points": len(best_route) if best_route else 0,
+            "time_seconds": round(elapsed, 1),
+            "heart_recognizability": hr_score,
+            "hr_explanation": hr_explain,
+            "error": None if best_route else "No route found",
+        }
+
+    V83_V84_BOOL_FLAGS = [
+        'dynamic_densify', 'spline_k', 'multi_res', 'force_close', 'indent_enforce',
+        'density_auto_scale', 'use_road_hierarchy', 'use_skeleton_score',
+        'use_fgw', 'use_perceptual_loss', 'use_ph_topology', 'wide_search',
+    ]
+    has_v83_flags = any(flags.get(k) for k in V83_V84_BOOL_FLAGS) \
+        or flags.get('symmetry_weight', 0) > 0 \
+        or flags.get('penalty_factor', 1.0) != 1.0 \
+        or flags.get('v6_proximity_weight', 0) > 0 \
+        or flags.get('indent_weight', 0) > 0 \
+        or flags.get('skeleton_weight', 0) > 0 \
+        or flags.get('fgw_weight', 0) > 0 \
+        or flags.get('perceptual_weight', 0) > 0 \
+        or flags.get('ph_weight', 0) > 0
 
     use_hybrid = flags.get('hybrid_v6', False)
 
@@ -169,16 +313,23 @@ def run_single_test(test_config, G, kd):
         if mode in HANDLERS:
             result = HANDLERS[mode](payload)
             elapsed = time.time() - t0
+            rt = result.get("route", [])
+            hr_score, hr_explain = None, None
+            if rt and len(rt) >= 10:
+                from v85_wide_search import route_heart_recognizability
+                hr_score, hr_explain = route_heart_recognizability(rt)
             return {
                 "id": test_id, "label": label, "mode": mode, "flags": flags,
                 "score": result.get("score"),
-                "route": result.get("route", []),
+                "route": rt,
                 "rotation": result.get("rotation"),
                 "scale": result.get("scale"),
                 "center": result.get("center", CENTER),
                 "route_length_m": result.get("route_length_m"),
-                "route_points": len(result.get("route", [])),
+                "route_points": len(rt),
                 "time_seconds": round(elapsed, 1),
+                "heart_recognizability": hr_score,
+                "hr_explanation": hr_explain,
                 "error": result.get("error"),
             }
 
@@ -276,6 +427,12 @@ def run_single_test(test_config, G, kd):
             length_m += haversine(best_route[i][0], best_route[i][1],
                                   best_route[i+1][0], best_route[i+1][1])
 
+    # Human recognizability score
+    hr_score, hr_explain = None, None
+    if best_route and len(best_route) >= 10:
+        from v85_wide_search import route_heart_recognizability
+        hr_score, hr_explain = route_heart_recognizability(best_route)
+
     return {
         "id": test_id,
         "label": label,
@@ -289,6 +446,8 @@ def run_single_test(test_config, G, kd):
         "route_length_m": round(length_m),
         "route_points": len(best_route) if best_route else 0,
         "time_seconds": round(elapsed, 1),
+        "heart_recognizability": hr_score,
+        "hr_explanation": hr_explain,
         "error": None if best_route else "No route found",
     }
 
@@ -616,14 +775,15 @@ def main():
     generate_visual_scores_csv(results, SCORES_CSV)
 
     # Print score summary table
-    log(f"\n{'─'*70}")
-    log(f"{'Test ID':<30} {'Score':>8} {'Time':>8} {'Pts':>6}")
-    log(f"{'─'*70}")
+    log(f"\n{'─'*80}")
+    log(f"{'Test ID':<30} {'Score':>8} {'HR':>5} {'Time':>8} {'Pts':>6}")
+    log(f"{'─'*80}")
     for r in sorted(results, key=lambda x: x.get("score") or 1e9):
         sc = f"{r['score']:.1f}" if r.get("score") else "FAIL"
         tm = f"{r['time_seconds']:.0f}s" if r.get("time_seconds") else "—"
         pts = str(r.get("route_points", 0))
-        log(f"{r['id']:<30} {sc:>8} {tm:>8} {pts:>6}")
+        hr = f"{r['heart_recognizability']:.1f}" if r.get("heart_recognizability") is not None else "—"
+        log(f"{r['id']:<30} {sc:>8} {hr:>5} {tm:>8} {pts:>6}")
 
 
 if __name__ == "__main__":

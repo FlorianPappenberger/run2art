@@ -350,7 +350,7 @@ def prune_perpendicular_edges(G_sub, ideal_line, tangent_field, max_deviation_de
 
 def precompute_edge_weights(G_sub, ideal_line, tangent_field, apex_points,
                             w_head=8.0, w_uturn=1.0, beta=0.0003,
-                            tube_radius_m=300):
+                            tube_radius_m=300, apex_radius_m=15.0):
     """v8.1: Multiplicative penalty field with additive heading/uturn.
 
     Cost = L × H × (1 + β·d²) + w_head·heading + w_uturn·uturn
@@ -429,7 +429,7 @@ def precompute_edge_weights(G_sub, ideal_line, tangent_field, apex_points,
         local_beta = beta
 
     # ── C_uturn: penalty for edges that reverse direction near non-apex areas ──
-    near_apex = compute_uturn_mask(G_sub, midpoints, apex_points, apex_radius_m=15.0)
+    near_apex = compute_uturn_mask(G_sub, midpoints, apex_points, apex_radius_m=apex_radius_m)
     reverse_dev = np.abs(edge_bearings - local_tangents) % 360.0
     reverse_dev = np.where(reverse_dev > 180.0, 360.0 - reverse_dev, reverse_dev)
     is_reversal = reverse_dev > 150.0  # nearly opposite direction
@@ -702,6 +702,10 @@ class CoreRouter:
             ideal_line,
             angle_threshold=self.config.get('apex_threshold', 120)
         )
+        # Allow injection of additional apex points (e.g. heart indent)
+        extra = self.config.get('extra_apex_points', [])
+        if extra:
+            self.apex_points.extend(extra)
         self.is_closed = self._check_closed()
 
         # Build adaptive corridor
@@ -728,6 +732,7 @@ class CoreRouter:
                 w_uturn=self.config.get('w_uturn', 1.0),
                 beta=self.config.get('beta', 0.0003),
                 tube_radius_m=self.config.get('tube_radius_m', 300),
+                apex_radius_m=self.config.get('apex_radius_m', 15.0),
             )
 
         log(f"[CoreRouter] apexes={len(self.apex_points)}, "

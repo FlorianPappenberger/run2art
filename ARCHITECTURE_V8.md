@@ -332,3 +332,171 @@ GeoPandas implementation: series of circles with varying radii, `unary_union` me
 - `bidirectional_score()` preserved as `scoring.py` (legacy fallback)
 - Existing corridor/KDTree infrastructure reused
 - Cache format unchanged (same graph pkl files)
+
+---
+
+## 7. v8.3 ENHANCEMENTS — Heart Fidelity Layer
+
+**Module:** `v83_enhancements.py`
+
+### 7.1 Problem: Missing Heart Features
+
+The v8.2 router produced "rounded blob" routes rather than recognizable hearts.
+Root cause: the original HEART_PTS had **zero sharp vertices above the 120°
+deflection threshold** — the top indent was only ~44° and the bottom cusp ~79°.
+This meant CoreRouter never created U-turn permit zones, and all direction
+reversals were blocked with 5000m penalties.
+
+### 7.2 Fixes
+
+1. **Parametric Heart Shape** (23 control points): Deeper top indent with
+   explicit bilateral symmetry and pronounced bottom cusp.
+2. **Extra Apex Injection**: CoreRouter accepts `extra_apex_points` list,
+   with the heart's top indent injected as an explicit apex.
+3. **`indent_enforce` flag**: Lowers `apex_threshold` to 40° and widens
+   `apex_radius_m` to 50m so the top indent always gets a U-turn zone.
+4. **Indent Proximity Penalty**: `indent_proximity_penalty()` adds a
+   distance-based penalty if the route fails to pass near the top indent.
+
+### 7.3 Config Flags
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `dynamic_densify` | bool | false | Road-curvature-aware densification |
+| `spline_k` | int | 0 | B-spline post-smoothing (3/4/5) |
+| `multi_res` | bool | false | Multi-resolution routing |
+| `symmetry_weight` | float | 0.0 | Symmetry penalty (0.0–0.5) |
+| `penalty_factor` | float | 1.0 | v6-style penalty scaling |
+| `force_close` | bool | false | Force loop closure |
+| `overlap_penalty` | float | 0.0 | Edge reuse penalty |
+| `v6_proximity_weight` | float | 0.0 | Blend v6 proximity |
+| `indent_enforce` | bool | false | Enforce heart top indent |
+| `indent_weight` | float | 0.0 | Indent proximity penalty weight |
+
+### 7.4 Results
+
+Best v8.3 config: `indent_sym05_pen30` — score **113.3m** (vs 362m baseline),
+with visible top indent and proper bilateral symmetry.
+
+---
+
+## 8. v8.4 PERCEPTUAL & ROAD-AWARE LAYER
+
+**Module:** `v84_perceptual.py`
+
+Sits on top of v8.3 enhancements. Every feature is an optional flag
+that can be toggled independently. All heavy imports are deferred so
+missing packages cause a warning, never a crash.
+
+### 8.1 Road-Density Auto-Scaling (`density_auto_scale`)
+
+Grid-searches for the highest road-density pocket within configurable
+`density_max_move_m` (default 500m) of the center. If the original
+center's density is below `density_target` (default 800 nodes/km²),
+the template center is shifted before routing begins.
+
+**Functions:** `compute_local_density()`, `find_best_density_pocket()`,
+`density_auto_scale()`, `maybe_auto_scale_center()`
+
+### 8.2 Road-Hierarchy Bonus (`use_road_hierarchy`)
+
+Multiplies each edge's `v8w` weight by a pedestrian-friendliness factor
+based on the OSM `highway` tag. Footways/paths get a 0.75× bonus (cheaper),
+while primary/trunk roads get 1.3–1.5× penalties. Applied after
+`precompute_edge_weights()`.
+
+**Function:** `apply_road_hierarchy_bonus(G_sub)`
+
+### 8.3 Medial-Axis / Skeleton Score (`use_skeleton_score`)
+
+Rasterizes both route and ideal shape to 128×128 binary images, computes
+morphological skeletons via `skimage.morphology.skeletonize`, then measures
+bidirectional Hausdorff distance between the two skeletons.
+
+**Dependency:** scikit-image  
+**Functions:** `_rasterize_polyline()`, `_extract_skeleton()`,
+`skeleton_score()`, `get_ideal_skeleton()`
+
+### 8.4 Fused Gromov-Wasserstein (`use_fgw`)
+
+Combines geometric (Wasserstein) and structural (Gromov) optimal transport
+distances. Both polylines are sub-sampled to 80 points, internal pairwise
+haversine distance matrices are computed, then `ot.gromov.fused_gromov_wasserstein2`
+from the POT library gives a single scalar distance.
+
+**Dependency:** POT (Python Optimal Transport)  
+**Function:** `fgw_score(route, ideal_pts, alpha=0.5, weight=1.0)`
+
+### 8.5 Perceptual Loss (`use_perceptual_loss`)
+
+Renders route and ideal shapes as white-on-black 224×224 images, passes
+both through a frozen MobileNetV3-Small, then computes cosine distance
+between the two embedding vectors. Captures high-level "does it look like
+a heart?" similarity.
+
+**Dependency:** torch, torchvision  
+**Functions:** `_render_route_image()`, `_image_to_embedding()`,
+`perceptual_heart_score()`
+
+### 8.6 Persistent Homology Topology Score (`use_ph_topology`)
+
+Computes persistence diagrams (Rips complex, max dimension 2) of both
+route and ideal point clouds, then measures bottleneck distance on the
+H1 (1-dimensional holes) features. A heart should have exactly 1 main
+loop. Additional loop mismatch penalties are applied.
+
+**Dependency:** gudhi  
+**Functions:** `_compute_persistence_diagram()`, `_persistence_to_arrays()`,
+`ph_topology_score()`
+
+### 8.7 Composite Scoring
+
+`score_v84()` aggregates all enabled sub-scores into a `v84_total`, which
+is blended with the v8.3 score via the `v84_blend` parameter:
+
+```
+final_score = v83_score × (1 - v84_blend) + v84_total × v84_blend
+```
+
+Default `v84_blend = 0.4`.
+
+### 8.8 v8.4 Config Flags
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `density_auto_scale` | bool | false | Shift center to high-density area |
+| `density_target` | int | 800 | Min nodes/km² before shifting |
+| `density_max_move_m` | int | 500 | Max center shift distance |
+| `use_road_hierarchy` | bool | false | Pedestrian-friendly edge bonuses |
+| `use_skeleton_score` | bool | false | Medial-axis skeleton comparison |
+| `skeleton_weight` | float | 0.0 | Skeleton score weight |
+| `use_fgw` | bool | false | Fused Gromov-Wasserstein |
+| `fgw_weight` | float | 0.0 | FGW score weight |
+| `use_perceptual_loss` | bool | false | MobileNet perceptual loss |
+| `perceptual_weight` | float | 0.0 | Perceptual score weight |
+| `use_ph_topology` | bool | false | Persistent homology topology |
+| `ph_weight` | float | 0.0 | PH topology score weight |
+| `v84_blend` | float | 0.4 | Weight of v84 in final score |
+
+### 8.9 Test Configurations
+
+44 tests in `v83_batch_benchmark.py`:
+- **2** v8.2 baselines (fit, optimize)
+- **4** indent enforcement variants
+- **13** indent + symmetry combos
+- **2** miscellaneous v8.3
+- **23** v8.4 feature combinations (density, hierarchy, skeleton, PH,
+  FGW, perceptual, and multi-feature blends)
+
+### 8.10 Module Architecture (updated)
+
+```
+engine.py
+  ├── core_router.py      — Soft-constraint routing (+ extra_apex_points)
+  ├── scoring_v8.py       — Fréchet-primary scoring
+  ├── v83_enhancements.py — Heart fidelity + indent + v84 integration
+  ├── v84_perceptual.py   — NEW: 6 perceptual/road-aware features
+  ├── routing.py          — Bidirectional A*, corridor, KD-tree
+  ├── geometry.py         — Tangent field, apex detection, shapes
+  └── scoring.py          — Legacy scorer (fallback)
+```

@@ -354,7 +354,12 @@ def symmetry_penalty(route, ideal_line=None):
     right_mirrored = right_mirrored[::-1]
 
     # Sample both to same number of points
-    n_sample = min(30, min(len(left_half), len(right_mirrored)))
+    n_sample = min(50, min(len(left_half), len(right_mirrored)))
+
+    # Ensure ideal_line is passed for heart shapes
+    if not ideal_line:
+        log("[Warning] Ideal line missing for symmetry axis. Defaulting to centroid.")
+
     left_s = sample_polyline(left_half.tolist(), n_sample)
     right_s = sample_polyline(right_mirrored.tolist(), n_sample)
 
@@ -553,12 +558,78 @@ def hybrid_v6_coarse_search(G, pts, center, kdtree_data=None,
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-#  8. ENHANCED SCORING (v8.3 composite with symmetry)
+#  8a. HEART INDENT DETECTION & ENFORCEMENT
+# ═══════════════════════════════════════════════════════════════════════════
+
+def find_heart_indent(ideal_pts):
+    """Detect the top indent (V-dip between lobes) in a heart-shaped ideal line.
+
+    The indent is the southernmost point on the top quarter of the shape
+    that lies near the shape's vertical center line — the classic dip
+    between the two lobes.
+
+    Returns: (lat, lng, deflection_deg) tuple suitable as an apex point,
+             or None if not found.
+    """
+    ia = np.asarray(ideal_pts, dtype=np.float64)
+    if len(ia) < 10:
+        return None
+
+    centroid = ia.mean(axis=0)
+    lat_range = ia[:, 0].max() - ia[:, 0].min()
+    lng_range = ia[:, 1].max() - ia[:, 1].min()
+
+    # Top quarter: points with lat > centroid + 0.125 * lat_range (northern half)
+    north_threshold = centroid[0] + lat_range * 0.125
+    # Near center line: within 10% of lng range from centroid
+    center_band = lng_range * 0.10
+
+    candidates = []
+    for i in range(len(ia)):
+        if ia[i, 0] > north_threshold:
+            # In the northern portion — check if near center longitude
+            if abs(ia[i, 1] - centroid[1]) < center_band:
+                candidates.append((i, ia[i, 0], ia[i, 1]))
+
+    if not candidates:
+        return None
+
+    # The indent is the SOUTHERNMOST (lowest lat) of these center-top points
+    indent = min(candidates, key=lambda c: c[1])
+    log(f"[v8.3-indent] Detected indent at lat={indent[1]:.4f}, lng={indent[2]:.4f}")
+    return (indent[1], indent[2], 90.0)  # treat as 90° deflection apex
+
+
+def indent_proximity_penalty(route, indent_pt, threshold_m=80):
+    """Penalize routes that don't come close enough to the heart's top indent.
+
+    Args:
+        route: list of [lat, lng]
+        indent_pt: (lat, lng) of the indent
+        threshold_m: distance beyond which penalty kicks in
+
+    Returns: penalty in metres (0 if route visits the indent)
+    """
+    if not route or indent_pt is None:
+        return 0.0
+
+    ra = np.asarray(route, dtype=np.float64)
+    dists = haversine_vector(ra[:, 0], ra[:, 1], indent_pt[0], indent_pt[1])
+    min_dist = float(dists.min())
+
+    if min_dist <= threshold_m:
+        return 0.0
+    return (min_dist - threshold_m) * 3.0
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  8b. ENHANCED SCORING (v8.3 composite with symmetry + indent)
 # ═══════════════════════════════════════════════════════════════════════════
 
 def score_v83(route, ideal_pts, symmetry_weight=0.0, v6_proximity_weight=0.0,
+              indent_weight=0.0, indent_pt=None,
               G=None, kdtree_data=None):
-    """v8.3 composite score: v8 metrics + optional symmetry + v6 proximity.
+    """v8.3 composite score: v8 metrics + optional symmetry + v6 proximity + indent.
 
     Args:
         route: list of [lat, lng]
@@ -587,6 +658,10 @@ def score_v83(route, ideal_pts, symmetry_weight=0.0, v6_proximity_weight=0.0,
         prox = coarse_proximity_score(G, route_s, kdtree_data=kdtree_data)
         base_score = base_score * (1.0 - v6_proximity_weight) + prox * v6_proximity_weight
 
+    if indent_weight > 0 and indent_pt is not None:
+        indent_pen = indent_proximity_penalty(route, indent_pt)
+        base_score += indent_weight * indent_pen
+
     return base_score
 
 
@@ -596,9 +671,9 @@ def score_v83(route, ideal_pts, symmetry_weight=0.0, v6_proximity_weight=0.0,
 
 def fit_and_score_v83(G, pts, rot, scale, center, config=None,
                       kdtree_data=None):
-    """v8.3 enhanced routing pipeline with configurable features.
+    """v8.3/v8.4 enhanced routing pipeline with configurable features.
 
-    Config keys:
+    Config keys (v8.3):
         dynamic_densify: bool — use road-curvature-aware densification
         spline_k: int or None — B-spline degree for post-smoothing (3/4/5)
         multi_res: bool — use multi-resolution routing
@@ -607,8 +682,20 @@ def fit_and_score_v83(G, pts, rot, scale, center, config=None,
         force_close: bool — force loop closure
         overlap_penalty: float — edge reuse penalty factor (0 = off)
         v6_proximity_weight: float — blend v6 proximity into scoring
+        indent_enforce: bool — enforce heart top indent via apex injection
+        indent_weight: float — indent proximity penalty weight (0.0–1.0)
 
-    Returns: (score, route) tuple
+    Config keys (v8.4 — Perceptual & Road-Aware):
+        density_auto_scale: bool — auto-shift center to high-density area
+        use_road_hierarchy: bool — apply pedestrian-friendly road bonus
+        use_skeleton_score: bool + skeleton_weight: float
+        use_fgw: bool + fgw_weight: float
+        use_perceptual_loss: bool + perceptual_weight: float
+        use_ph_topology: bool + ph_weight: float
+        v84_blend: float — weight of v84 total in final score (default 0.4)
+
+    Returns: (score, route) tuple   — also (score, route, v84_detail)
+             if any v8.4 flag is active
     """
     from core_router import CoreRouter, _build_kdtree
     from scoring_v8 import score_v8, frechet_normalized
@@ -623,6 +710,19 @@ def fit_and_score_v83(G, pts, rot, scale, center, config=None,
     overlap_pen = config.get('overlap_penalty', 0.0)
     v6_prox_weight = config.get('v6_proximity_weight', 0.0)
     refine_iterations = config.get('refine_iterations', 0)
+    enable_indent = config.get('indent_enforce', False)
+    indent_weight = config.get('indent_weight', 0.0)
+
+    # ── v8.4: detect if any new flag is on ──
+    v84_flags = ['density_auto_scale', 'use_road_hierarchy',
+                 'use_skeleton_score', 'use_fgw',
+                 'use_perceptual_loss', 'use_ph_topology']
+    has_v84 = any(config.get(f, False) for f in v84_flags)
+
+    # ── v8.4 Step 0: density auto-scale (shift center) ──
+    if config.get('density_auto_scale', False) and G:
+        from v84_perceptual import maybe_auto_scale_center
+        center = maybe_auto_scale_center(center, pts, G, config)
 
     # Step 1: Shape to geographic coords
     wps = shape_to_latlngs(pts, center, scale, rot)
@@ -641,6 +741,13 @@ def fit_and_score_v83(G, pts, rot, scale, center, config=None,
             return (1e9, None)
         return (score_v8(route, ideal), route)
 
+    # Step 2b: Detect heart indent for apex injection
+    indent_pt = None
+    if enable_indent:
+        indent_info = find_heart_indent(ideal)
+        if indent_info:
+            indent_pt = (indent_info[0], indent_info[1])
+
     # Step 3: Route
     route = None
     try:
@@ -652,7 +759,27 @@ def fit_and_score_v83(G, pts, rot, scale, center, config=None,
             router_config = {}
             if penalty_factor != 1.0:
                 router_config['beta'] = 0.0003 * penalty_factor
+
+            # Indent enforcement: lower apex threshold + inject indent as apex
+            if enable_indent:
+                router_config['apex_threshold'] = 40
+                router_config['apex_radius_m'] = 50.0
+                if indent_pt:
+                    router_config['extra_apex_points'] = [
+                        (indent_pt[0], indent_pt[1], 90.0)
+                    ]
+
+            # v8.4: road-hierarchy flag passed into router config
+            if config.get('use_road_hierarchy', False):
+                router_config['use_road_hierarchy'] = True
+
             router = CoreRouter(G, ideal, config=router_config)
+
+            # ── v8.4: apply road-hierarchy bonus post-weight ──
+            if config.get('use_road_hierarchy', False) and router.G_sub:
+                from v84_perceptual import apply_road_hierarchy_bonus
+                apply_road_hierarchy_bonus(router.G_sub)
+
             route = router.route()
     except Exception as e:
         log(f"[v8.3] Routing failed: {e}")
@@ -669,16 +796,29 @@ def fit_and_score_v83(G, pts, rot, scale, center, config=None,
     if spline_k is not None and spline_k >= 2:
         route = spline_smooth_route(route, G, kdtree_data=kd, k=spline_k)
 
-    # Step 5: Score
-    score = score_v83(route, ideal,
-                      symmetry_weight=sym_weight,
-                      v6_proximity_weight=v6_prox_weight,
-                      G=G, kdtree_data=kd)
+    # Step 5: v8.3 Score
+    v83_score = score_v83(route, ideal,
+                          symmetry_weight=sym_weight,
+                          v6_proximity_weight=v6_prox_weight,
+                          indent_weight=indent_weight,
+                          indent_pt=indent_pt,
+                          G=G, kdtree_data=kd)
 
     # Fréchet gate
     fd_norm = frechet_normalized(route, ideal)
     if fd_norm > 0.12:
-        score *= 2.0
-        log(f"[v8.3] Fréchet gate: fd_norm={fd_norm:.3f} → score doubled to {score:.1f}")
+        v83_score *= 2.0
+        log(f"[v8.3] Fréchet gate: fd_norm={fd_norm:.3f} → score doubled to {v83_score:.1f}")
 
-    return (score, route)
+    # ── Step 6: v8.4 Perceptual scores ──
+    if has_v84:
+        from v84_perceptual import score_v84
+        v84_detail = score_v84(route, ideal, config, G=G, kdtree_data=kd)
+        v84_total = v84_detail['v84_total']
+        blend = config.get('v84_blend', 0.4)
+        score = v83_score * (1.0 - blend) + v84_total * blend
+        log(f"[v8.4] v83={v83_score:.1f} v84={v84_total:.1f} "
+            f"blend={blend:.2f} → {score:.1f}")
+        return (score, route)
+
+    return (v83_score, route)
